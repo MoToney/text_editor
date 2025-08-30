@@ -1,0 +1,6 @@
+texteditor\app\model\PieceTable.class
+texteditor\app\Main.class
+texteditor\app\model\PieceTable$PieceInfo.class
+module-info.class
+texteditor\app\io\LoadFile.class
+texteditor\app\model\PieceTable$Piece.class

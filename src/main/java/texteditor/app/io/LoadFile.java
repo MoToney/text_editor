@@ -1,4 +1,4 @@
-package src.main.java.com.texteditor;
+package texteditor.app.io;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Scanner;
 
 
-public class Main {
+public class LoadFile {
 
     public static void printFile(String file) {
         Path filePath = Path.of(file);
