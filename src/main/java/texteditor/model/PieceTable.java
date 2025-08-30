@@ -1,8 +1,6 @@
-package texteditor.app.model;
+package texteditor.model;
 
 import java.util.*;
-
-
 
 public class PieceTable {
     private class Piece {
@@ -56,6 +54,14 @@ public class PieceTable {
             }
         }
         return result.toString();
+    }
+
+    public int getLength() {
+        int length = 0;
+        for (Piece piece : pieces) {
+            length += piece.length;
+        }
+        return length;
     }
 
     public record PieceInfo(Piece piece, int localIndex, int pieceListIndex) {

@@ -5,4 +5,5 @@ module text_editor.app {
 
     opens texteditor.app to javafx.fxml;
     exports texteditor.app;
+
 }
