@@ -1,4 +1,4 @@
-package src.main.java.com.texteditor;
+package texteditor.app.model;
 
 import java.util.*;
 
