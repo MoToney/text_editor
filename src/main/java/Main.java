@@ -1,5 +1,3 @@
-package src.main.java;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,7 +45,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        String fl = "src/main/resources/test.txt";
+        String fl = "test.txt";
         printFile(fl);
         writeFile(fl);
 
