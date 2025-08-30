@@ -1,3 +1,5 @@
+package src.main.java.com.texteditor;
+
 import java.util.*;
 
 
