@@ -1,49 +1,36 @@
 package texteditor.app;
 
 import javafx.application.Application;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
+import texteditor.controller.EditorController;
+import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
-import texteditor.view.Renderer;
+import texteditor.view.EditorCanvas;
 
 public class Main extends Application {
-    private static final String INITIAL_TEXT = "Hello, world! This is a simple text editor.";
+    private static final String INITIAL_TEXT = "Hello, world! This is a simple text editor. " +
+            "\n What is going on " +
+            "\n I hope this works";
 
     @Override
     public void start(Stage stage) {
-        // Create the PieceTable with static text as per the M0 plan.
         PieceTable document = new PieceTable(INITIAL_TEXT);
-        Renderer renderer = new Renderer();
+        CursorModel cursor = new CursorModel(document);
 
-
-        // Create the JavaFX window with a Canvas.
-        Canvas canvas = new Canvas(800, 600);
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-
-        // Initial drawing of the scene
-        renderer.drawDocument(gc, document.getText());
-
+        EditorCanvas canvas = new EditorCanvas(document, cursor);
+        canvas.calculateFontMetrics();
+        canvas.draw();
 
         StackPane root = new StackPane(canvas);
         Scene scene = new Scene(root, 800, 600);
 
-        // Configure the Stage
+        // hand off to controller
+        new EditorController(scene, document, cursor, canvas);
+
         stage.setTitle("Minimal Text Editor - M0");
         stage.setScene(scene);
         stage.show();
-
-        // Get the GraphicsContext to draw on the Canvas.
-
-        // Draw the document content to the Canvas.
-           renderer.drawDocument(gc, document.getText());
     }
-
-    public static void main(String[] args) {
-        launch(args);
-    }}
+}
