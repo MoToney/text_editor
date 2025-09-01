@@ -23,18 +23,28 @@ public class EditorController {
 
     private void setupKeyHandlers() {
         scene.setOnKeyPressed(event -> {
+            boolean modelChanged = false;
+
             if (event.getCode() == KeyCode.LEFT) {
                 cursor.moveLeft();
+                modelChanged = true;
             } else if (event.getCode() == KeyCode.RIGHT) {
                 cursor.moveRight();
+                modelChanged = true;
             } else if (event.getCode().isLetterKey() || event.getCode().isDigitKey() || event.getText().length() == 1) {
                 document.insertText(cursor.getPosition(), event.getText());
                 cursor.moveRight();
+                modelChanged = true;
             } else if (event.getCode() == KeyCode.BACK_SPACE) {
                 document.removeText(cursor.getPosition() - 1, 1);
                 cursor.moveLeft();
+                modelChanged = true;
             }
-            canvas.draw();
+
+            if (modelChanged) {
+                canvas.resetCursorBlink();
+                canvas.draw();
+            }
         });
     }
 }

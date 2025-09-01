@@ -1,11 +1,14 @@
 package texteditor.view;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Bounds;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 
@@ -22,10 +25,38 @@ public class EditorCanvas extends Canvas {
     private  double cursorX = 0;
     private  double cursorY = 0;
 
+    private boolean isCursorVisible = true;
+    private final Timeline cursorBlinkTimeline;
+
     public EditorCanvas(PieceTable document, CursorModel cursor) {
         super(800,600);
         this.document = document;
         this.cursor = cursor;
+
+        this.cursorBlinkTimeline = new Timeline(
+            new KeyFrame(Duration.seconds(0.5), event -> {
+                isCursorVisible = !isCursorVisible;
+                draw();
+            })
+        );
+        cursorBlinkTimeline.setCycleCount(Timeline.INDEFINITE);
+        cursorBlinkTimeline.play();
+
+        this.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                resetCursorBlink();
+                cursorBlinkTimeline.play();
+            } else {
+                isCursorVisible = false;
+                draw();
+                cursorBlinkTimeline.pause();
+            }
+        });
+    }
+
+    public void resetCursorBlink() {
+        isCursorVisible = true;
+        cursorBlinkTimeline.playFromStart();
     }
 
     public void calculateFontMetrics() {
@@ -83,11 +114,16 @@ public class EditorCanvas extends Canvas {
     }
 
     public void drawCursor(GraphicsContext gc) {
+        if (!isCursorVisible) {
+            return;
+        }
         double cursorHeight = 15.0;
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);
         gc.strokeLine(cursorX, cursorY - cursorHeight, cursorX, cursorY);
     }
+
+
 
 
 }
