@@ -31,6 +31,19 @@ public class EditorController {
             } else if (event.getCode() == KeyCode.RIGHT) {
                 cursor.moveRight();
                 modelChanged = true;
+            } else if (event.getCode() == KeyCode.UP) {
+                cursor.moveUp();
+                modelChanged = true;
+            } else if (event.getCode() == KeyCode.DOWN) {
+                cursor.moveDown();
+                modelChanged = true;
+            } else if (event.getCode() == KeyCode.END) {
+                cursor.moveEnd();
+                modelChanged = true;
+
+            } else if (event.getCode() == KeyCode.HOME) {
+                cursor.moveHome();
+                modelChanged = true;
             } else if (event.getCode().isLetterKey() || event.getCode().isDigitKey() || event.getText().length() == 1) {
                 document.insertText(cursor.getPosition(), event.getText());
                 cursor.moveRight();

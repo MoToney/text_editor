@@ -137,6 +137,45 @@ public class PieceTable {
         return position - runningTotal;
     }
 
+    public int getPosition(int lineIndex, int columnIndex) {
+        int position = 0;
+        for (int i = 0; i < lineIndex; i++) {
+            position += lineCache.get(i).length;
+        }
+        position += columnIndex;
+        return position;
+    }
+
+    public int getPositionAtEndOfLine(int lineIndex) {
+        int position = 0;
+        for (int i = 0; i <= lineIndex; i++) {
+            position += lineCache.get(i).length;
+        }
+        return position;
+    }
+
+    public int getPositionAtStartOfLine(int lineIndex) {
+        int position = 0;
+        if (lineIndex > 0) position = getPositionAtEndOfLine(lineIndex - 1);
+        return position;
+    }
+
+    public int getLineLength(int lineIndex) {
+        return lineCache.get(lineIndex).length;
+    }
+
+    public int getRemainingLineLength(int position) {
+        int lineIndex = getLineIndex(position);
+        int columnIndex = getColumnIndex(position);
+        int lineLength = lineCache.get(lineIndex).length;
+
+        return lineLength - columnIndex;
+    }
+
+    public boolean isLastLine(int lineIndex) {
+        return lineIndex == getLineCount() - 1;
+    }
+
     public String getLine(int lineIndex) {
         if (lineIndex < 0 || lineIndex >= lineCache.size()) {
             throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);

@@ -10,9 +10,12 @@ import texteditor.model.PieceTable;
 import texteditor.view.EditorCanvas;
 
 public class Main extends Application {
-    private static final String INITIAL_TEXT = "Hello, world! This is a simple text editor. " +
-            "\n What is going on " +
-            "\n I hope this works";
+    private static final String INITIAL_TEXT =
+            "Hello, world! This is a simple text editor.\n" +
+            "What is actually going on.\n" +
+            "I hope this works\n" +
+            "I sincerely do have this dream";
+
 
     @Override
     public void start(Stage stage) {

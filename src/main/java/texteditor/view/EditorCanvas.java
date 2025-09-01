@@ -16,7 +16,7 @@ public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private final CursorModel cursor;
 
-    private final Font font = new Font("Monospaced", 18);
+    private final Font font = new Font("Monospaced", 26);
     private double paddingLeft = 10.0;
     private double paddingTop = 25.0;
     private double lineHeight = 18.0;
@@ -117,7 +117,7 @@ public class EditorCanvas extends Canvas {
         if (!isCursorVisible) {
             return;
         }
-        double cursorHeight = 15.0;
+        double cursorHeight = 20;
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);
         gc.strokeLine(cursorX, cursorY - cursorHeight, cursorX, cursorY);
