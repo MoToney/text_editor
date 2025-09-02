@@ -3,13 +3,19 @@ package texteditor.model;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import texteditor.view.EditorCanvas;
+import texteditor.view.EditorCanvas.VisualLine;
+
+import java.util.List;
 
 public class CursorModel {
     private int position;
     private final PieceTable document;
+    private final EditorCanvas canvas;
 
-    public CursorModel(PieceTable document) {
+    public CursorModel(PieceTable document, EditorCanvas canvas) {
         this.document = document;
+        this.canvas = canvas;
         this.position = 0;
     }
 
@@ -30,7 +36,32 @@ public class CursorModel {
         setPosition(position - 1);
     }
     public void moveDown() {
-        int currentColumnIndex = document.getColumnIndex(position);
+        List<VisualLine> lines = canvas.getVisualLines();
+        if (lines.isEmpty()) return;
+
+        int currentColumn = 0;
+        int currentVisualLineIndex = -1;
+
+        for (int i = 0; i < lines.size(); i++) {
+            VisualLine line = lines.get(i);
+            int lineEndPosition = line.startPosition() + line.text().length();
+            if (position >= line.startPosition() && position <= lineEndPosition) {
+                currentVisualLineIndex = i;
+                currentColumn = position - line.startPosition();
+                break;
+            }
+        }
+
+        if (currentVisualLineIndex != -1 && currentVisualLineIndex < lines.size() - 1) {
+            VisualLine nextLine = lines.get(currentVisualLineIndex + 1);
+
+            int targetColumn = Math.min(currentColumn, nextLine.text().length());
+
+            setPosition(nextLine.startPosition() + targetColumn);
+        }
+
+
+        /*int currentColumnIndex = document.getColumnIndex(position);
         int currentLineIndex = document.getLineIndex(position);
 
         if (document.isLastLine(currentLineIndex)) return;
@@ -42,7 +73,7 @@ public class CursorModel {
                 : Math.min(currentColumnIndex, document.getLineLength(nextLineIndex));
 
         int newPosition = document.getPosition(nextLineIndex, targetColumnIndex);
-        setPosition(newPosition);
+        setPosition(newPosition);*/
 
     }
 

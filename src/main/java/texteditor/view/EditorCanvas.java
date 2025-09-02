@@ -12,32 +12,37 @@ import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
-    private final CursorModel cursor;
+    private CursorModel cursor;
 
     private final Font font = new Font("Monospaced", 26);
+    private final Text textMetrics = new Text();
     private double paddingLeft = 10.0;
+    private double paddingRight = 10.0;
     private double paddingTop = 25.0;
     private double lineHeight = 18.0;
     private double baselineOffset = 14.0;
 
-    private  double cursorX = 0;
-    private  double cursorY = 0;
+    private double cursorX = 0;
+    private double cursorY = 0;
 
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    public EditorCanvas(PieceTable document, CursorModel cursor) {
-        super(800,600);
+    public EditorCanvas(PieceTable document) {
+        super(800, 600);
         this.document = document;
-        this.cursor = cursor;
+        this.cursor = null;
 
         this.cursorBlinkTimeline = new Timeline(
-            new KeyFrame(Duration.seconds(0.5), event -> {
-                isCursorVisible = !isCursorVisible;
-                draw();
-            })
+                new KeyFrame(Duration.seconds(0.5), event -> {
+                    isCursorVisible = !isCursorVisible;
+                    draw();
+                })
         );
         cursorBlinkTimeline.setCycleCount(Timeline.INDEFINITE);
         cursorBlinkTimeline.play();
@@ -54,13 +59,14 @@ public class EditorCanvas extends Canvas {
         });
     }
 
+    public void setCursor(CursorModel cursor) {this.cursor = cursor;}
+
     public void resetCursorBlink() {
         isCursorVisible = true;
         cursorBlinkTimeline.playFromStart();
     }
 
     public void calculateFontMetrics() {
-        Text textMetrics = new Text("T");
         textMetrics.setFont(font);
 
         double calculatedLineSpacing = textMetrics.getLineSpacing();
@@ -87,43 +93,111 @@ public class EditorCanvas extends Canvas {
     }
 
     public void drawDocument(GraphicsContext gc) {
-        // In EditorCanvas.drawDocumentText()
+        this.visualLines.clear();
+        double availableWidth = getWidth() - paddingLeft - paddingRight;
+        int logicalLineStartPosition = 0;
         int lineCount = document.getLineCount();
+
         for (int i = 0; i < lineCount; i++) {
-            String lineText = document.getLine(i);
-            double y = paddingTop + baselineOffset + (i * lineHeight);
-            gc.fillText(lineText, paddingLeft, y);
+            String logicalLine = document.getLine(i);
+            textMetrics.setText(logicalLine);
+            double lineWidth = textMetrics.getLayoutBounds().getWidth();
+
+            int logicalLineLength = document.getLineLength(i);
+            boolean hasTrailingNewLine = (i < lineCount - 1);
+
+
+            if (lineWidth <= availableWidth) {
+                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition));
+            } else {
+                String remainingText = logicalLine;
+                int currentVisualLineStartPosition = logicalLineStartPosition;
+                while (!remainingText.isEmpty()) {
+                    int breakPoint = -1;
+                    for (int j = 1; j <= remainingText.length(); j++) {
+                        String sub = remainingText.substring(0, j);
+                        textMetrics.setText(sub);
+                        double subWidth = textMetrics.getLayoutBounds().getWidth();
+                        if (subWidth > availableWidth) {
+                            breakPoint = j - 1;
+                            break;
+                        }
+                    }
+                    if (breakPoint > 0) {
+                        String textThatFits = remainingText.substring(0, breakPoint);
+                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition));
+                        remainingText = remainingText.substring(breakPoint);
+                        currentVisualLineStartPosition += breakPoint;
+                    } else {
+                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition));
+                        remainingText = "";
+                    }
+                }
+            }
+            logicalLineStartPosition += logicalLineLength + (hasTrailingNewLine ? 1 : 0);
+
+            for (int l = 0; l < visualLines.size(); l++) {
+                String lineToDraw = visualLines.get(l).text;
+                double y = paddingTop + baselineOffset + (l * lineHeight);
+                gc.fillText(lineToDraw, paddingLeft, y);
+            }
+
         }
+
     }
 
+    // In EditorCanvas.java
     public void updateCursorLocation() {
         int cursorPosition = cursor.getPosition();
 
-        int lineIndex = document.getLineIndex(cursorPosition);
-        int columnIndex = document.getColumnIndex(cursorPosition);
+        // 1. Loop through the VISUAL lines to find the cursor.
+        for (int i = 0; i < visualLines.size(); i++) {
+            VisualLine line = visualLines.get(i);
+            int lineEndPosition = line.startPosition() + line.text().length();
 
-        String lineText = document.getLine(lineIndex);
-        String textBeforeCursor = lineText.substring(0, Math.min(columnIndex, lineText.length()));
+            // Check if the cursor's absolute position is within this visual line's range.
+            if (cursorPosition >= line.startPosition() && cursorPosition <= lineEndPosition) {
 
-        Text textToMeasure = new Text(textBeforeCursor);
-        textToMeasure.setFont(font);
-        double textWidth = textToMeasure.getLayoutBounds().getWidth();
+                // 2. Calculate the column relative to this VISUAL line.
+                int visualColumn = cursorPosition - line.startPosition();
 
-        this.cursorX = paddingLeft + textWidth;
-        this.cursorY = paddingTop + baselineOffset + (lineIndex * lineHeight);
+                // 3. Get the substring of the VISUAL line before the cursor.
+                String textBeforeCursor = line.text().substring(0, visualColumn);
+
+                // 4. Measure the substring to get the X coordinate.
+                textMetrics.setText(textBeforeCursor);
+                double textWidth = textMetrics.getLayoutBounds().getWidth();
+                this.cursorX = paddingLeft + textWidth;
+
+                // 5. Use the VISUAL line's index (i) to get the Y coordinate.
+                this.cursorY = paddingTop + baselineOffset + (i * lineHeight);
+
+                // We found the cursor's location, so we can exit the loop.
+                return;
+            }
+        }
     }
 
     public void drawCursor(GraphicsContext gc) {
         if (!isCursorVisible) {
             return;
         }
-        double cursorHeight = 20;
+        // Calculate the top of the line by subtracting the baseline offset from the cursor's Y.
+        double lineTop = cursorY - baselineOffset;
+
+        // Calculate the bottom of the line.
+        double lineBottom = lineTop + lineHeight;
+
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);
-        gc.strokeLine(cursorX, cursorY - cursorHeight, cursorX, cursorY);
+        gc.strokeLine(cursorX, lineTop, cursorX, lineBottom);
     }
 
+    public record VisualLine(String text, int startPosition) {}
 
+    private List<VisualLine> visualLines = new ArrayList<>();
 
-
+    public List<VisualLine> getVisualLines() {
+        return visualLines;
+    }
 }

@@ -161,13 +161,13 @@ public class PieceTable {
     }
 
     public int getLineLength(int lineIndex) {
-        return lineCache.get(lineIndex).length;
+        return getLine(lineIndex).length();
     }
 
     public int getRemainingLineLength(int position) {
         int lineIndex = getLineIndex(position);
         int columnIndex = getColumnIndex(position);
-        int lineLength = lineCache.get(lineIndex).length;
+        int lineLength = getLineLength(lineIndex);
 
         return lineLength - columnIndex;
     }
@@ -226,8 +226,7 @@ public class PieceTable {
         return this.totalLength;
     }
 
-    public record PieceInfo(Piece piece, int localIndex, int pieceListIndex) {
-    }
+    public record PieceInfo(Piece piece, int localIndex, int pieceListIndex) {}
 
     public PieceInfo getPieceByIndex(int index) {
         int currentLength = 0;

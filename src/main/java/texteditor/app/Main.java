@@ -20,9 +20,11 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         PieceTable document = new PieceTable(INITIAL_TEXT);
-        CursorModel cursor = new CursorModel(document);
+        EditorCanvas canvas = new EditorCanvas(document);
+        CursorModel cursor = new CursorModel(document, canvas);
 
-        EditorCanvas canvas = new EditorCanvas(document, cursor);
+        canvas.setCursor(cursor);
+
         canvas.calculateFontMetrics();
         canvas.draw();
 
