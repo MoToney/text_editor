@@ -61,6 +61,10 @@ public class EditorCanvas extends Canvas {
         });
     }
 
+    public record VisualLine(String text, int startPosition) {
+        public int length() {return text.length();}
+    }
+
     public void setCursor(CursorModel cursor) {
         this.cursor = cursor;
     }
@@ -86,6 +90,12 @@ public class EditorCanvas extends Canvas {
         this.baselineOffset = textMetrics.getBaselineOffset();
     }
 
+    private double measureWidth(String s) {
+        if (s == null || s.isEmpty()) return 0.0;
+        textMetrics.setText(s);
+        return textMetrics.getLayoutBounds().getWidth();
+    }
+
     public void draw() {
         GraphicsContext gc = this.getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
@@ -95,7 +105,6 @@ public class EditorCanvas extends Canvas {
         updateCursorLocation();
         drawCursor(gc);
     }
-
     public void drawDocument(GraphicsContext gc) {
         this.visualLines.clear();
         double availableWidth = getWidth() - paddingLeft - paddingRight;
@@ -112,7 +121,7 @@ public class EditorCanvas extends Canvas {
 
 
             if (lineWidth <= availableWidth) {
-                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition, logicalLineLength));
+                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition));
             } else {
                 String remainingText = logicalLine;
                 int currentVisualLineStartPosition = logicalLineStartPosition;
@@ -129,11 +138,11 @@ public class EditorCanvas extends Canvas {
                     }
                     if (breakPoint > 0) {
                         String textThatFits = remainingText.substring(0, breakPoint);
-                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition, breakPoint));
+                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition));
                         remainingText = remainingText.substring(breakPoint);
                         currentVisualLineStartPosition += breakPoint;
                     } else {
-                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition, remainingText.length()));
+                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition));
                         remainingText = "";
                     }
                 }
@@ -149,7 +158,6 @@ public class EditorCanvas extends Canvas {
         }
 
     }
-
     public void updateCursorLocation() {
         int cursorPosition = cursor.getPosition();
 
@@ -196,8 +204,6 @@ public class EditorCanvas extends Canvas {
         gc.strokeLine(cursorX, lineTop, cursorX, lineBottom);
     }
 
-    public record VisualLine(String text, int startPosition, int length) {
-    }
 
     public List<VisualLine> getVisualLines() {
         return this.visualLines;
@@ -216,7 +222,11 @@ public class EditorCanvas extends Canvas {
     }
 
     public int getVisualLineLength(int index) {
-        return this.visualLines.get(index).length;
+        return this.visualLines.get(index).length();
+    }
+
+    public int getVisualLineEndPosition(int index) {
+        return this.visualLines.get(index).startPosition + this.visualLines.get(index).length();
     }
 
     public int getVisualLineIndex(int position) {
@@ -226,7 +236,7 @@ public class EditorCanvas extends Canvas {
 
         for (int i = 0; i < lines.size(); i++) {
             VisualLine line = lines.get(i);
-            int lineEndPosition = line.startPosition + line.length;
+            int lineEndPosition = line.startPosition + line.length();
             if (position >= line.startPosition && position <= lineEndPosition) {
                 currentVisualLineIndex = i;
                 return currentVisualLineIndex;
@@ -235,15 +245,19 @@ public class EditorCanvas extends Canvas {
         return -1;
     }
 
-    public int getVisualLineColumn(int VisualLineIndex, int position) {
-        VisualLine line = visualLines.get(VisualLineIndex);
+    public int getVisualLineColumn(int visualLineIndex, int position) {
+        VisualLine line = visualLines.get(visualLineIndex);
         int column = position - line.startPosition;
         return column;
     }
 
-    public int getVisualPosition(int VisualLineIndex, int column) {
-        VisualLine line = visualLines.get(VisualLineIndex);
+    public int getVisualPosition(int visualLineIndex, int column) {
+        VisualLine line = visualLines.get(visualLineIndex);
         return line.startPosition + column;
+    }
+
+    public boolean isLastLine(int visualLineIndex) {
+        return visualLineIndex == visualLines.size() - 1;
     }
 }
 

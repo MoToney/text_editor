@@ -81,19 +81,13 @@ public class CursorModel {
     }
 
     public void moveEnd() {
-        int lineIndex = document.getLineIndex(position);
-
-        int newPosition = (document.isLastLine(lineIndex))
-                ? document.getPositionAtEndOfLine(lineIndex)
-                : document.getPositionAtEndOfLine(lineIndex) - 1;
-        setPosition(newPosition);
+        int lineIndex = canvas.getVisualLineIndex(position);
+        setPosition(canvas.getVisualLineEndPosition(lineIndex));
     }
 
     public void moveHome() {
-        int lineIndex = document.getLineIndex(position);
-
-        int newPosition = document.getPositionAtStartOfLine(lineIndex);
-        setPosition(newPosition);
+        int lineIndex = canvas.getVisualLineIndex(position);
+        setPosition(canvas.getVisualLineStartPosition(lineIndex));
     }
 
 
