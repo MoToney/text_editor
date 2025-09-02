@@ -18,6 +18,8 @@ import java.util.List;
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private CursorModel cursor;
+    private final List<VisualLine> visualLines = new ArrayList<>();
+
 
     private final Font font = new Font("Monospaced", 26);
     private final Text textMetrics = new Text();
@@ -59,7 +61,9 @@ public class EditorCanvas extends Canvas {
         });
     }
 
-    public void setCursor(CursorModel cursor) {this.cursor = cursor;}
+    public void setCursor(CursorModel cursor) {
+        this.cursor = cursor;
+    }
 
     public void resetCursorBlink() {
         isCursorVisible = true;
@@ -108,7 +112,7 @@ public class EditorCanvas extends Canvas {
 
 
             if (lineWidth <= availableWidth) {
-                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition));
+                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition, logicalLineLength));
             } else {
                 String remainingText = logicalLine;
                 int currentVisualLineStartPosition = logicalLineStartPosition;
@@ -125,11 +129,11 @@ public class EditorCanvas extends Canvas {
                     }
                     if (breakPoint > 0) {
                         String textThatFits = remainingText.substring(0, breakPoint);
-                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition));
+                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition, breakPoint));
                         remainingText = remainingText.substring(breakPoint);
                         currentVisualLineStartPosition += breakPoint;
                     } else {
-                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition));
+                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition, remainingText.length()));
                         remainingText = "";
                     }
                 }
@@ -146,7 +150,6 @@ public class EditorCanvas extends Canvas {
 
     }
 
-    // In EditorCanvas.java
     public void updateCursorLocation() {
         int cursorPosition = cursor.getPosition();
 
@@ -193,11 +196,54 @@ public class EditorCanvas extends Canvas {
         gc.strokeLine(cursorX, lineTop, cursorX, lineBottom);
     }
 
-    public record VisualLine(String text, int startPosition) {}
-
-    private List<VisualLine> visualLines = new ArrayList<>();
+    public record VisualLine(String text, int startPosition, int length) {
+    }
 
     public List<VisualLine> getVisualLines() {
-        return visualLines;
+        return this.visualLines;
+    }
+
+    public VisualLine getVisualLine(int index) {
+        return this.visualLines.get(index);
+    }
+
+    public String getVisualLineText(int index) {
+        return this.visualLines.get(index).text;
+    }
+
+    public int getVisualLineStartPosition(int index) {
+        return this.visualLines.get(index).startPosition;
+    }
+
+    public int getVisualLineLength(int index) {
+        return this.visualLines.get(index).length;
+    }
+
+    public int getVisualLineIndex(int position) {
+        List<VisualLine> lines = this.visualLines;
+        int currentVisualLineIndex;
+        if (lines.isEmpty()) return -1;
+
+        for (int i = 0; i < lines.size(); i++) {
+            VisualLine line = lines.get(i);
+            int lineEndPosition = line.startPosition + line.length;
+            if (position >= line.startPosition && position <= lineEndPosition) {
+                currentVisualLineIndex = i;
+                return currentVisualLineIndex;
+            }
+        }
+        return -1;
+    }
+
+    public int getVisualLineColumn(int VisualLineIndex, int position) {
+        VisualLine line = visualLines.get(VisualLineIndex);
+        int column = position - line.startPosition;
+        return column;
+    }
+
+    public int getVisualPosition(int VisualLineIndex, int column) {
+        VisualLine line = visualLines.get(VisualLineIndex);
+        return line.startPosition + column;
     }
 }
+

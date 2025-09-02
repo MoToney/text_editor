@@ -1,8 +1,5 @@
 package texteditor.model;
 
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import texteditor.view.EditorCanvas;
 import texteditor.view.EditorCanvas.VisualLine;
 
@@ -24,7 +21,7 @@ public class CursorModel {
     }
 
     public void setPosition(int position) {
-        if (position >= 0 && position <= document.getLength()) {
+        if (position >= 0 && position <= document.getDocumentLength()) {
             this.position = position;
         }
     }
@@ -39,23 +36,14 @@ public class CursorModel {
         List<VisualLine> lines = canvas.getVisualLines();
         if (lines.isEmpty()) return;
 
-        int currentColumn = 0;
-        int currentVisualLineIndex = -1;
+        int currentVisualLineIndex = canvas.getVisualLineIndex(position);
+        int currentColumn = canvas.getVisualLineColumn(currentVisualLineIndex, position);
 
-        for (int i = 0; i < lines.size(); i++) {
-            VisualLine line = lines.get(i);
-            int lineEndPosition = line.startPosition() + line.text().length();
-            if (position >= line.startPosition() && position <= lineEndPosition) {
-                currentVisualLineIndex = i;
-                currentColumn = position - line.startPosition();
-                break;
-            }
-        }
 
         if (currentVisualLineIndex != -1 && currentVisualLineIndex < lines.size() - 1) {
             VisualLine nextLine = lines.get(currentVisualLineIndex + 1);
 
-            int targetColumn = Math.min(currentColumn, nextLine.text().length());
+            int targetColumn = Math.min(currentColumn, nextLine.length() );
 
             setPosition(nextLine.startPosition() + targetColumn);
         }
@@ -78,18 +66,16 @@ public class CursorModel {
     }
 
     public void moveUp() {
-        int currentColumnIndex = document.getColumnIndex(position);
-        int currentLineIndex = document.getLineIndex(position);
+        int currentLineIndex = canvas.getVisualLineIndex(position);
+        int currentColumnIndex = canvas.getVisualLineColumn(currentLineIndex, position);
 
         if (currentLineIndex <= 0) return;
 
         int previousLineIndex = currentLineIndex - 1;
 
-        int targetColumnIndex = (currentColumnIndex > document.getLineLength(previousLineIndex))
-                ? document.getLineLength(previousLineIndex) - 1
-                : currentColumnIndex;
+        int targetColumnIndex = Math.min(currentColumnIndex, canvas.getVisualLineLength(previousLineIndex));
 
-        int newPosition = document.getPosition(previousLineIndex, targetColumnIndex);
+        int newPosition = canvas.getVisualPosition(previousLineIndex, targetColumnIndex);
 
         setPosition(newPosition);
     }

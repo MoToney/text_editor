@@ -222,7 +222,7 @@ public class PieceTable {
         return result.toString();
     }
 
-    public int getLength() {
+    public int getDocumentLength() {
         return this.totalLength;
     }
 
@@ -373,7 +373,7 @@ public class PieceTable {
 
 
 
-        System.out.println(testTable.getLength());
+        System.out.println(testTable.getDocumentLength());
 
         System.out.println(testTable.getLineCount());
 
