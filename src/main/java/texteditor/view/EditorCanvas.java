@@ -19,6 +19,7 @@ public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private CursorModel cursor;
     private final List<VisualLine> visualLines = new ArrayList<>();
+    public enum Affinity { LEFT, RIGHT }
 
 
     private final Font font = new Font("Monospaced", 26);
@@ -34,6 +35,11 @@ public class EditorCanvas extends Canvas {
 
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
+
+    private Affinity caretAffinity = Affinity.RIGHT;
+    private boolean phantomAtEnd = false;
+    private int phantomLineIndex = -1;
+    private final double phantomOverhangPx = 2.0;
 
     public EditorCanvas(PieceTable document) {
         super(800, 600);
@@ -66,6 +72,65 @@ public class EditorCanvas extends Canvas {
             return text.length();
         }
     }
+
+    public void setCaretAffinity(Affinity a) { this.caretAffinity = a; }
+
+    public void setPhantomAtEnd(int visualLineIndex) {
+        this.phantomAtEnd = true;
+        this.phantomLineIndex = visualLineIndex;
+        this.caretAffinity = Affinity.RIGHT;
+    }
+
+    public void clearPhantom() {
+        this.phantomAtEnd = false;
+        this.phantomLineIndex = -1;
+    }
+
+    private int findVisualLineIndexWithAffinity(int position) {
+        if (visualLines.isEmpty()) return -1;
+
+        for (int i = 0; i < visualLines.size(); i++) {
+            VisualLine cur = visualLines.get(i);
+            int start = cur.startPosition;
+            int endEx = start + cur.length(); // exclusive end
+
+            // Normal interior membership
+            if (position > start && position < endEx) return i;
+
+            // Exactly at the start of this visual line
+            if (position == start) {
+                // If it's also the end of previous, choose based on affinity
+                if (i > 0) {
+                    VisualLine prev = visualLines.get(i - 1);
+                    int prevEnd = prev.startPosition + prev.length();
+                    if (prevEnd == start) {
+                        return (caretAffinity == Affinity.RIGHT) ? i : (i - 1);
+                    }
+                }
+                return i;
+            }
+
+            // Exactly at the end of this visual line
+            if (position == endEx) {
+                // If it's also the start of next, choose based on affinity
+                if (i + 1 < visualLines.size()) {
+                    VisualLine next = visualLines.get(i + 1);
+                    if (next.startPosition == endEx) {
+                        return (caretAffinity == Affinity.RIGHT) ? (i + 1) : i;
+                    }
+                }
+                return i;
+            }
+        }
+
+        // If position is beyond all lines and equals document length (EOF), return last line.
+        int docLen = document.getDocumentLength();
+        if (position >= docLen) return visualLines.size() - 1;
+
+        return -1;
+    }
+
+
 
     public void setCursor(CursorModel cursor) {
         this.cursor = cursor;
@@ -162,35 +227,52 @@ public class EditorCanvas extends Canvas {
 
 
     public void updateCursorLocation() {
-        int cursorPosition = cursor.getPosition();
+        if (cursor == null || visualLines.isEmpty()) return;
 
-        // 1. Loop through the VISUAL lines to find the cursor.
-        for (int i = 0; i < visualLines.size(); i++) {
-            VisualLine line = visualLines.get(i);
-            int lineEndPosition = line.startPosition() + line.text().length();
+        int pos = cursor.getPosition();                // logical index in document
+        int docLen = document.getDocumentLength();
 
-            // Check if the cursor's absolute position is within this visual line's range.
-            if (cursorPosition >= line.startPosition() && cursorPosition <= lineEndPosition) {
+        // Find visual line index respecting affinity
+        int vIndex = findVisualLineIndexWithAffinity(pos);
+        if (vIndex < 0) {
+            // fallback: place at end of last line
+            vIndex = visualLines.size() - 1;
+        }
 
-                // 2. Calculate the column relative to this VISUAL line.
-                int visualColumn = cursorPosition - line.startPosition();
+        VisualLine vline = visualLines.get(vIndex);
+        int start = vline.startPosition;
+        int len = vline.length();
 
-                // 3. Get the substring of the VISUAL line before the cursor.
-                String textBeforeCursor = line.text().substring(0, visualColumn);
+        // Column is clamped between 0 and len (len means "after last char")
+        int col = pos - start;
+        if (col < 0) col = 0;
+        if (col > len) col = len;
 
-                // 4. Measure the substring to get the X coordinate.
-                textMetrics.setText(textBeforeCursor);
-                double textWidth = textMetrics.getLayoutBounds().getWidth();
-                this.cursorX = paddingLeft + textWidth;
-
-                // 5. Use the VISUAL line's index (i) to get the Y coordinate.
-                this.cursorY = paddingTop + baselineOffset + (i * lineHeight);
-
-                // We found the cursor's location, so we can exit the loop.
-                return;
+        // X coordinate
+        double x;
+        boolean drawingPhantomHere = (phantomAtEnd && vIndex == phantomLineIndex && col == len);
+        if (drawingPhantomHere) {
+            // place caret just past end-of-line for End key visual
+            double textW = measureWidth(vline.text());
+            x = paddingLeft + textW + phantomOverhangPx;
+        } else {
+            // measure width of substring (0..col)
+            if (col == 0) {
+                x = paddingLeft;
+            } else {
+                String before = vline.text().substring(0, col);
+                x = paddingLeft + measureWidth(before);
             }
         }
+
+        // Y coordinate
+        double y = paddingTop + baselineOffset + (vIndex * lineHeight);
+
+        // Assign
+        this.cursorX = x;
+        this.cursorY = y;
     }
+
 
     public void drawCursor(GraphicsContext gc) {
         if (!isCursorVisible) {

@@ -26,9 +26,13 @@ public class EditorController {
             boolean modelChanged = false;
 
             if (event.getCode() == KeyCode.LEFT) {
+                canvas.setCaretAffinity(EditorCanvas.Affinity.LEFT);
+                canvas.clearPhantom();
                 cursor.moveLeft();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.RIGHT) {
+                canvas.setCaretAffinity(EditorCanvas.Affinity.RIGHT);
+                canvas.clearPhantom();
                 cursor.moveRight();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.UP) {
