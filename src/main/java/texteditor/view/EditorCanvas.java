@@ -62,7 +62,9 @@ public class EditorCanvas extends Canvas {
     }
 
     public record VisualLine(String text, int startPosition) {
-        public int length() {return text.length();}
+        public int length() {
+            return text.length();
+        }
     }
 
     public void setCursor(CursorModel cursor) {
@@ -105,6 +107,7 @@ public class EditorCanvas extends Canvas {
         updateCursorLocation();
         drawCursor(gc);
     }
+
     public void drawDocument(GraphicsContext gc) {
         this.visualLines.clear();
         double availableWidth = getWidth() - paddingLeft - paddingRight;
@@ -119,12 +122,12 @@ public class EditorCanvas extends Canvas {
             int logicalLineLength = document.getLineLength(i);
             boolean hasTrailingNewLine = (i < lineCount - 1);
 
-
             if (lineWidth <= availableWidth) {
                 visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition));
             } else {
                 String remainingText = logicalLine;
-                int currentVisualLineStartPosition = logicalLineStartPosition;
+                int visualStartPos = logicalLineStartPosition;
+
                 while (!remainingText.isEmpty()) {
                     int breakPoint = -1;
                     for (int j = 1; j <= remainingText.length(); j++) {
@@ -136,28 +139,28 @@ public class EditorCanvas extends Canvas {
                             break;
                         }
                     }
-                    if (breakPoint > 0) {
-                        String textThatFits = remainingText.substring(0, breakPoint);
-                        visualLines.add(new VisualLine(textThatFits, currentVisualLineStartPosition));
-                        remainingText = remainingText.substring(breakPoint);
-                        currentVisualLineStartPosition += breakPoint;
-                    } else {
-                        visualLines.add(new VisualLine(remainingText, currentVisualLineStartPosition));
-                        remainingText = "";
-                    }
+
+                    if (breakPoint <= 0) breakPoint = remainingText.length();
+
+                    String textThatFits = remainingText.substring(0, breakPoint);
+
+                    visualLines.add(new VisualLine(textThatFits, visualStartPos));
+
+                    visualStartPos += textThatFits.length();
+                    remainingText = remainingText.substring(breakPoint);
                 }
             }
-            logicalLineStartPosition += logicalLineLength + (hasTrailingNewLine ? 1 : 0);
 
+            logicalLineStartPosition += logicalLineLength + (hasTrailingNewLine ? 1 : 0);
+        }
             for (int l = 0; l < visualLines.size(); l++) {
                 String lineToDraw = visualLines.get(l).text;
                 double y = paddingTop + baselineOffset + (l * lineHeight);
                 gc.fillText(lineToDraw, paddingLeft, y);
             }
-
         }
 
-    }
+
     public void updateCursorLocation() {
         int cursorPosition = cursor.getPosition();
 
