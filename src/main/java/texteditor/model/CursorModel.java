@@ -32,53 +32,39 @@ public class CursorModel {
     public void moveLeft() {
         setPosition(position - 1);
     }
+
     public void moveDown() {
         List<VisualLine> lines = canvas.getVisualLines();
         if (lines.isEmpty()) return;
 
-        int currentVisualLineIndex = canvas.getVisualLineIndex(position);
-        int currentColumn = canvas.getVisualLineColumn(currentVisualLineIndex, position);
+        int currentIndex = canvas.findVisualLineIndexForPosition(position);
+        if (currentIndex == -1 || currentIndex >= lines.size() - 1) return;
 
+        VisualLine curLine = lines.get(currentIndex);
+        int currentCol = Math.min(position - curLine.startPosition(), curLine.length());
 
-        if (currentVisualLineIndex != -1 && currentVisualLineIndex < lines.size() - 1) {
-            VisualLine nextLine = lines.get(currentVisualLineIndex + 1);
+        VisualLine nextLine = lines.get(currentIndex + 1);
+        int targetCol = Math.min(currentCol, nextLine.length());
 
-            int targetColumn = Math.min(currentColumn, nextLine.length() );
-
-            setPosition(nextLine.startPosition() + targetColumn);
-        }
-
-
-        /*int currentColumnIndex = document.getColumnIndex(position);
-        int currentLineIndex = document.getLineIndex(position);
-
-        if (document.isLastLine(currentLineIndex)) return;
-
-        int nextLineIndex = currentLineIndex + 1;
-
-        int targetColumnIndex = (!document.isLastLine(nextLineIndex))
-                ? Math.min(currentColumnIndex, document.getLineLength(nextLineIndex) -1 )
-                : Math.min(currentColumnIndex, document.getLineLength(nextLineIndex));
-
-        int newPosition = document.getPosition(nextLineIndex, targetColumnIndex);
-        setPosition(newPosition);*/
-
+        setPosition(nextLine.startPosition() + targetCol);
     }
 
     public void moveUp() {
-        int currentLineIndex = canvas.getVisualLineIndex(position);
-        int currentColumnIndex = canvas.getVisualLineColumn(currentLineIndex, position);
+        List<VisualLine> lines = canvas.getVisualLines();
+        if (lines.isEmpty()) return;
 
-        if (currentLineIndex <= 0) return;
+        int currentIndex = canvas.findVisualLineIndexForPosition(position);
+        if (currentIndex <= 0) return;
 
-        int previousLineIndex = currentLineIndex - 1;
+        VisualLine curLine = lines.get(currentIndex);
+        int currentCol = Math.min(position - curLine.startPosition(), curLine.length());
 
-        int targetColumnIndex = Math.min(currentColumnIndex, canvas.getVisualLineLength(previousLineIndex));
+        VisualLine prevLine = lines.get(currentIndex - 1);
+        int targetCol = Math.min(currentCol, prevLine.length());
 
-        int newPosition = canvas.getVisualPosition(previousLineIndex, targetColumnIndex);
-
-        setPosition(newPosition);
+        setPosition(prevLine.startPosition() + targetCol);
     }
+
 
     public void moveEnd() {
         int lineIndex = canvas.getVisualLineIndex(position);

@@ -19,7 +19,8 @@ public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private CursorModel cursor;
     private final List<VisualLine> visualLines = new ArrayList<>();
-    public enum Affinity { LEFT, RIGHT }
+
+    public enum Affinity {LEFT, RIGHT}
 
 
     private final Font font = new Font("Monospaced", 26);
@@ -67,70 +68,15 @@ public class EditorCanvas extends Canvas {
         });
     }
 
-    public record VisualLine(String text, int startPosition) {
+    public record VisualLine(String text, int startPosition, boolean hasNewLineChar) {
         public int length() {
             return text.length();
         }
-    }
 
-    public void setCaretAffinity(Affinity a) { this.caretAffinity = a; }
-
-    public void setPhantomAtEnd(int visualLineIndex) {
-        this.phantomAtEnd = true;
-        this.phantomLineIndex = visualLineIndex;
-        this.caretAffinity = Affinity.RIGHT;
-    }
-
-    public void clearPhantom() {
-        this.phantomAtEnd = false;
-        this.phantomLineIndex = -1;
-    }
-
-    private int findVisualLineIndexWithAffinity(int position) {
-        if (visualLines.isEmpty()) return -1;
-
-        for (int i = 0; i < visualLines.size(); i++) {
-            VisualLine cur = visualLines.get(i);
-            int start = cur.startPosition;
-            int endEx = start + cur.length(); // exclusive end
-
-            // Normal interior membership
-            if (position > start && position < endEx) return i;
-
-            // Exactly at the start of this visual line
-            if (position == start) {
-                // If it's also the end of previous, choose based on affinity
-                if (i > 0) {
-                    VisualLine prev = visualLines.get(i - 1);
-                    int prevEnd = prev.startPosition + prev.length();
-                    if (prevEnd == start) {
-                        return (caretAffinity == Affinity.RIGHT) ? i : (i - 1);
-                    }
-                }
-                return i;
-            }
-
-            // Exactly at the end of this visual line
-            if (position == endEx) {
-                // If it's also the start of next, choose based on affinity
-                if (i + 1 < visualLines.size()) {
-                    VisualLine next = visualLines.get(i + 1);
-                    if (next.startPosition == endEx) {
-                        return (caretAffinity == Affinity.RIGHT) ? (i + 1) : i;
-                    }
-                }
-                return i;
-            }
+        public boolean endsWithNewLineChar() {
+            return hasNewLineChar;
         }
-
-        // If position is beyond all lines and equals document length (EOF), return last line.
-        int docLen = document.getDocumentLength();
-        if (position >= docLen) return visualLines.size() - 1;
-
-        return -1;
     }
-
-
 
     public void setCursor(CursorModel cursor) {
         this.cursor = cursor;
@@ -188,7 +134,7 @@ public class EditorCanvas extends Canvas {
             boolean hasTrailingNewLine = (i < lineCount - 1);
 
             if (lineWidth <= availableWidth) {
-                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition));
+                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition, hasTrailingNewLine));
             } else {
                 String remainingText = logicalLine;
                 int visualStartPos = logicalLineStartPosition;
@@ -209,7 +155,7 @@ public class EditorCanvas extends Canvas {
 
                     String textThatFits = remainingText.substring(0, breakPoint);
 
-                    visualLines.add(new VisualLine(textThatFits, visualStartPos));
+                    visualLines.add(new VisualLine(textThatFits, visualStartPos, hasTrailingNewLine));
 
                     visualStartPos += textThatFits.length();
                     remainingText = remainingText.substring(breakPoint);
@@ -218,59 +164,82 @@ public class EditorCanvas extends Canvas {
 
             logicalLineStartPosition += logicalLineLength + (hasTrailingNewLine ? 1 : 0);
         }
-            for (int l = 0; l < visualLines.size(); l++) {
-                String lineToDraw = visualLines.get(l).text;
-                double y = paddingTop + baselineOffset + (l * lineHeight);
-                gc.fillText(lineToDraw, paddingLeft, y);
-            }
+        for (int l = 0; l < visualLines.size(); l++) {
+            String lineToDraw = visualLines.get(l).text;
+            double y = paddingTop + baselineOffset + (l * lineHeight);
+            gc.fillText(lineToDraw, paddingLeft, y);
         }
+    }
 
 
     public void updateCursorLocation() {
         if (cursor == null || visualLines.isEmpty()) return;
 
-        int pos = cursor.getPosition();                // logical index in document
-        int docLen = document.getDocumentLength();
+        int pos = cursor.getPosition();
+        int vIndex = findVisualLineIndexForPosition(pos);
 
-        // Find visual line index respecting affinity
-        int vIndex = findVisualLineIndexWithAffinity(pos);
         if (vIndex < 0) {
-            // fallback: place at end of last line
             vIndex = visualLines.size() - 1;
         }
+        vIndex = Math.max(0, Math.min(vIndex, visualLines.size() - 1));
 
         VisualLine vline = visualLines.get(vIndex);
-        int start = vline.startPosition;
-        int len = vline.length();
+        int lineStart = vline.startPosition;
 
-        // Column is clamped between 0 and len (len means "after last char")
-        int col = pos - start;
-        if (col < 0) col = 0;
-        if (col > len) col = len;
+        int col = pos - lineStart;
 
-        // X coordinate
+        col = Math.min(col, vline.length());
+        col = Math.max(0, col);
+
+
+        // Compute X coordinate
         double x;
-        boolean drawingPhantomHere = (phantomAtEnd && vIndex == phantomLineIndex && col == len);
-        if (drawingPhantomHere) {
-            // place caret just past end-of-line for End key visual
-            double textW = measureWidth(vline.text());
-            x = paddingLeft + textW + phantomOverhangPx;
+
+
+        if (col == 0) {
+            x = paddingLeft;
         } else {
-            // measure width of substring (0..col)
-            if (col == 0) {
-                x = paddingLeft;
-            } else {
-                String before = vline.text().substring(0, col);
-                x = paddingLeft + measureWidth(before);
+            // safe: col is clamped into [0, len]
+            String before = vline.text().substring(0, col);
+            x = paddingLeft + measureWidth(before);
+        }
+
+
+        // Compute Y coordinate
+        double y = paddingTop + baselineOffset + (vIndex * lineHeight);
+
+        this.cursorX = x;
+        this.cursorY = y;
+    }
+
+    public int findVisualLineIndexForPosition(int position) {
+        if (visualLines.isEmpty()) return -1;
+
+        int docLen = document.getDocumentLength();
+        if (position < 0) return 0;
+
+        for (int i = 0; i < visualLines.size(); i++) {
+            VisualLine cur = visualLines.get(i);
+            int start = cur.startPosition;
+            int endEx = start + cur.length(); // exclusive end
+
+            // Normal interior membership
+            if (position >= start && position < endEx) return i;
+
+            // Exactly at the end of this visual line
+            if (position == endEx) {
+                // If it's also the start of next, choose based on affinity
+                if (cur.hasNewLineChar()) {
+                    return i;
+                } else {
+                    return i + 1;
+                }
             }
         }
 
-        // Y coordinate
-        double y = paddingTop + baselineOffset + (vIndex * lineHeight);
+        if (position >= docLen) return visualLines.size() - 1;
 
-        // Assign
-        this.cursorX = x;
-        this.cursorY = y;
+        return Math.max(0, Math.min(visualLines.size() - 1, position));
     }
 
 
