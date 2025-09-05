@@ -243,6 +243,23 @@ public class EditorCanvas extends Canvas {
         draw();
         }
 
+    public void moveHome() {
+        if (cursor == null) return;
+        int currentPos = cursor.getPosition();
+        if (currentPos > document.getDocumentLength()) { return; }
+
+        int index = findVisualLineIndexForPosition(currentPos);
+        if (index == -1)  return;
+
+        VisualLine cur = visualLines.get(index);
+        int start = cur.startPosition;
+
+        cursor.setPosition(start);
+        cursor.setAffinity(CursorModel.Affinity.RIGHT);
+        resetCursorBlink();
+        draw();
+    }
+
 
     public void updateCursorLocation() {
         if (cursor == null || visualLines.isEmpty()) return;

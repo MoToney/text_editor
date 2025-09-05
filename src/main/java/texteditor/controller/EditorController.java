@@ -38,7 +38,7 @@ public class EditorController {
             } else if (event.getCode() == KeyCode.END) {
                 canvas.moveEnd();
             } else if (event.getCode() == KeyCode.HOME) {
-                cursor.moveHome();
+                canvas.moveHome();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.ENTER) {
                 document.insertText(cursor.getPosition(), "\n");
