@@ -196,13 +196,59 @@ public class EditorCanvas extends Canvas {
         }
     }
 
+    public void moveLeft() {
+        if (cursor == null) return;
+        int currentPos = cursor.getPosition();
+        if (currentPos > 0) {
+            cursor.setPosition(currentPos - 1);
+            // Set RIGHT affinity for backward navigation.
+            cursor.setAffinity(CursorModel.Affinity.RIGHT);
+        }
+        resetCursorBlink();
+        draw();
+    }
+
+    public void moveRight() {
+        if (cursor == null) return;
+        int currentPos = cursor.getPosition();
+        if (currentPos < document.getDocumentLength()) {
+            cursor.setPosition(currentPos + 1);
+            // Set LEFT affinity for forward navigation.
+            cursor.setAffinity(CursorModel.Affinity.RIGHT);
+        }
+        resetCursorBlink();
+        draw();
+    }
+
+    public void moveEnd() {
+        if (cursor == null) return;
+        int currentPos = cursor.getPosition();
+        if (currentPos > document.getDocumentLength()) { return; }
+
+        int index = findVisualLineIndexForPosition(currentPos);
+        if (index == -1)  return;
+
+        VisualLine cur = visualLines.get(index);
+        int start = cur.startPosition;
+        int endEx = start + cur.length();
+
+        if (cur.hasNewLineChar) {
+           cursor.setPosition(endEx - 1);
+        } else {
+            cursor.setPosition(endEx);
+            cursor.setAffinity(CursorModel.Affinity.LEFT);
+        }
+
+        resetCursorBlink();
+        draw();
+        }
 
 
     public void updateCursorLocation() {
         if (cursor == null || visualLines.isEmpty()) return;
 
         int pos = cursor.getPosition();
-        int vIndex = getVisualLineIndex(pos);
+        int vIndex =findVisualLineIndexForPosition(pos);
 
         if (vIndex < 0) {
             vIndex = visualLines.size() - 1;
@@ -232,7 +278,7 @@ public class EditorCanvas extends Canvas {
             if (visualLines.isEmpty()) return -1;
 
             int docLen = document.getDocumentLength();
-            if (position < 0) return 0;
+            position = Math.max(0, Math.min(position, docLen));
 
             for (int i = 0; i < visualLines.size(); i++) {
                 VisualLine cur = visualLines.get(i);
@@ -246,12 +292,16 @@ public class EditorCanvas extends Canvas {
 
                 // if position is at the start of this line
                 if (position == start) {
-                    return i;
+                    if (i == 0) return 0; // Very first character must be on the first line.
+                    // Affinity decides: RIGHT belongs to the previous line.
+                    return (cursor.getAffinity() == CursorModel.Affinity.RIGHT) ? i - 1 : i;
                 }
 
-                // if position is at the end of this line
+                // Case 3: Position is at the end of this line.
                 if (position == endEx) {
-
+                    if (i == visualLines.size() - 1) return i; // Very last position must be on the last line.
+                    // For a soft wrap, affinity decides: LEFT belongs to this line.
+                    return (cursor.getAffinity() == CursorModel.Affinity.LEFT) ? i : i + 1;
                 }
             }
 

@@ -36,9 +36,6 @@ public class CursorModel {
     public void moveRight() {
         setPosition(position + 1);
     }
-    public void moveLeft() {
-        setPosition(position - 1);
-    }
 
     public void moveDown() {
         List<VisualLine> lines = canvas.getVisualLines();

@@ -26,13 +26,9 @@ public class EditorController {
             boolean modelChanged = false;
 
             if (event.getCode() == KeyCode.LEFT) {
-                cursor.setAffinity(CursorModel.Affinity.LEFT);
-                cursor.moveLeft();
-                modelChanged = true;
+                canvas.moveLeft();
             } else if (event.getCode() == KeyCode.RIGHT) {
-                cursor.setAffinity(CursorModel.Affinity.RIGHT);
-                cursor.moveRight();
-                modelChanged = true;
+                canvas.moveRight();
             } else if (event.getCode() == KeyCode.UP) {
                 cursor.moveUp();
                 modelChanged = true;
@@ -40,8 +36,7 @@ public class EditorController {
                 cursor.moveDown();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.END) {
-                cursor.moveEnd();
-                modelChanged = true;
+                canvas.moveEnd();
             } else if (event.getCode() == KeyCode.HOME) {
                 cursor.moveHome();
                 modelChanged = true;
@@ -55,7 +50,7 @@ public class EditorController {
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.BACK_SPACE) {
                 document.removeText(cursor.getPosition() - 1, 1);
-                cursor.moveLeft();
+                canvas.moveLeft();
                 modelChanged = true;
             }
 
