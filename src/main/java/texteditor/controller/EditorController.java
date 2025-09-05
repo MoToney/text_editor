@@ -26,9 +26,11 @@ public class EditorController {
             boolean modelChanged = false;
 
             if (event.getCode() == KeyCode.LEFT) {
+                cursor.setAffinity(CursorModel.Affinity.LEFT);
                 cursor.moveLeft();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.RIGHT) {
+                cursor.setAffinity(CursorModel.Affinity.RIGHT);
                 cursor.moveRight();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.UP) {
@@ -40,7 +42,6 @@ public class EditorController {
             } else if (event.getCode() == KeyCode.END) {
                 cursor.moveEnd();
                 modelChanged = true;
-
             } else if (event.getCode() == KeyCode.HOME) {
                 cursor.moveHome();
                 modelChanged = true;

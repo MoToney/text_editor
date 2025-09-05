@@ -20,7 +20,6 @@ public class EditorCanvas extends Canvas {
     private CursorModel cursor;
     private final List<VisualLine> visualLines = new ArrayList<>();
 
-    public enum Affinity {LEFT, RIGHT}
 
 
     private final Font font = new Font("Monospaced", 26);
@@ -37,13 +36,12 @@ public class EditorCanvas extends Canvas {
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    private Affinity caretAffinity = Affinity.RIGHT;
     private boolean phantomAtEnd = false;
     private int phantomLineIndex = -1;
     private final double phantomOverhangPx = 2.0;
 
     public EditorCanvas(PieceTable document) {
-        super(800, 600);
+        super(250, 300);
         this.document = document;
         this.cursor = null;
 
@@ -127,43 +125,70 @@ public class EditorCanvas extends Canvas {
 
         for (int i = 0; i < lineCount; i++) {
             String logicalLine = document.getLine(i);
-            textMetrics.setText(logicalLine);
-            double lineWidth = textMetrics.getLayoutBounds().getWidth();
+
+            // --- Extract any trailing newline sequence and keep the text content separate ---
+            String newline = "";
+            String content = logicalLine;
+            if (content.endsWith("\r\n")) {
+                newline = "\r\n";
+                content = content.substring(0, content.length() - 2);
+            } else if (content.endsWith("\n") || content.endsWith("\r")) {
+                newline = content.substring(content.length() - 1);
+                content = content.substring(0, content.length() - 1);
+            }
+
+            // Measure the full visible width using content only (newline has no horizontal width)
+            textMetrics.setText(content);
+            double contentWidth = textMetrics.getLayoutBounds().getWidth();
 
             int logicalLineLength = document.getLineLength(i);
-            boolean hasTrailingNewLine = (i < lineCount - 1);
+            boolean hasHardLineBreak = !newline.isEmpty(); // whether this logical line ended with newline
 
-            if (lineWidth <= availableWidth) {
-                visualLines.add(new VisualLine(logicalLine, logicalLineStartPosition, hasTrailingNewLine));
+            // If entire content fits, create a single visual line containing content + newline (if any)
+            if (contentWidth <= availableWidth) {
+                String textForVisual = content + newline; // newline preserved for caret/indexing
+                visualLines.add(new VisualLine(textForVisual, logicalLineStartPosition, hasHardLineBreak));
             } else {
-                String remainingText = logicalLine;
+                // Wrapping: operate on content (no newline). Ensure the newline is appended to the last piece.
+                String remaining = content;
                 int visualStartPos = logicalLineStartPosition;
 
-                while (!remainingText.isEmpty()) {
+                while (!remaining.isEmpty()) {
                     int breakPoint = -1;
-                    for (int j = 1; j <= remainingText.length(); j++) {
-                        String sub = remainingText.substring(0, j);
-                        textMetrics.setText(sub);
-                        double subWidth = textMetrics.getLayoutBounds().getWidth();
-                        if (subWidth > availableWidth) {
+                    // Find largest j such that remaining.substring(0, j) fits
+                    for (int j = 1; j <= remaining.length(); j++) {
+                        String sub = remaining.substring(0, j);
+                        if (measureWidth(sub) > availableWidth) {
                             breakPoint = j - 1;
                             break;
                         }
                     }
+                    if (breakPoint <= 0) breakPoint = remaining.length();
 
-                    if (breakPoint <= 0) breakPoint = remainingText.length();
+                    String piece = remaining.substring(0, breakPoint);
+                    remaining = remaining.substring(breakPoint);
 
-                    String textThatFits = remainingText.substring(0, breakPoint);
+                    // If this is the last piece (no remaining content) and there is a newline, append it
+                    boolean isLastPiece = remaining.isEmpty();
+                    String pieceToStore = isLastPiece && !newline.isEmpty() ? piece + newline : piece;
+                    boolean pieceHasHardBreak = isLastPiece && hasHardLineBreak;
 
-                    visualLines.add(new VisualLine(textThatFits, visualStartPos, hasTrailingNewLine));
+                    visualLines.add(new VisualLine(pieceToStore, visualStartPos, pieceHasHardBreak));
 
-                    visualStartPos += textThatFits.length();
-                    remainingText = remainingText.substring(breakPoint);
+                    // Advance the visualStartPos by the logical characters we just assigned.
+                    // Note: newline contributes to logical positions only when appended to the last piece.
+                    visualStartPos += piece.length();
+                    if (isLastPiece && !newline.isEmpty()) {
+                        visualStartPos += newline.length(); // account for \n or \r\n in the buffer index
+                    }
                 }
             }
 
-            logicalLineStartPosition += logicalLineLength + (hasTrailingNewLine ? 1 : 0);
+            // Advance the logicalLineStartPosition by the full logical length (includes newline if present)
+            logicalLineStartPosition += logicalLineLength;
         }
+
+        // Draw visual lines
         for (int l = 0; l < visualLines.size(); l++) {
             String lineToDraw = visualLines.get(l).text;
             double y = paddingTop + baselineOffset + (l * lineHeight);
@@ -172,30 +197,23 @@ public class EditorCanvas extends Canvas {
     }
 
 
+
     public void updateCursorLocation() {
         if (cursor == null || visualLines.isEmpty()) return;
 
         int pos = cursor.getPosition();
-        int vIndex = findVisualLineIndexForPosition(pos);
+        int vIndex = getVisualLineIndex(pos);
 
         if (vIndex < 0) {
             vIndex = visualLines.size() - 1;
         }
-        vIndex = Math.max(0, Math.min(vIndex, visualLines.size() - 1));
 
         VisualLine vline = visualLines.get(vIndex);
         int lineStart = vline.startPosition;
-
         int col = pos - lineStart;
+        col = Math.max(0, Math.min(col, vline.length()));
 
-        col = Math.min(col, vline.length());
-        col = Math.max(0, col);
-
-
-        // Compute X coordinate
         double x;
-
-
         if (col == 0) {
             x = paddingLeft;
         } else {
@@ -204,8 +222,6 @@ public class EditorCanvas extends Canvas {
             x = paddingLeft + measureWidth(before);
         }
 
-
-        // Compute Y coordinate
         double y = paddingTop + baselineOffset + (vIndex * lineHeight);
 
         this.cursorX = x;
@@ -213,6 +229,38 @@ public class EditorCanvas extends Canvas {
     }
 
     public int findVisualLineIndexForPosition(int position) {
+            if (visualLines.isEmpty()) return -1;
+
+            int docLen = document.getDocumentLength();
+            if (position < 0) return 0;
+
+            for (int i = 0; i < visualLines.size(); i++) {
+                VisualLine cur = visualLines.get(i);
+                int start = cur.startPosition;
+                int endEx = start + cur.length();
+
+                // if position is within this line
+                if (position > start && position < endEx) {
+                    return i;
+                }
+
+                // if position is at the start of this line
+                if (position == start) {
+                    return i;
+                }
+
+                // if position is at the end of this line
+                if (position == endEx) {
+
+                }
+            }
+
+            if (position >= docLen) return visualLines.size() - 1;
+
+            return Math.max(0, Math.min(visualLines.size() - 1, position));
+        }
+
+    public int getVisualLineIndex(int position) {
         if (visualLines.isEmpty()) return -1;
 
         int docLen = document.getDocumentLength();
@@ -220,26 +268,36 @@ public class EditorCanvas extends Canvas {
 
         for (int i = 0; i < visualLines.size(); i++) {
             VisualLine cur = visualLines.get(i);
-            int start = cur.startPosition;
-            int endEx = start + cur.length(); // exclusive end
+            int start = cur.startPosition;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+            int endEx = start + cur.length();
 
-            // Normal interior membership
-            if (position >= start && position < endEx) return i;
-
-            // Exactly at the end of this visual line
-            if (position == endEx) {
-                // If it's also the start of next, choose based on affinity
-                if (cur.hasNewLineChar()) {
-                    return i;
-                } else {
-                    return i + 1;
-                }
+            // if position is within this line (including the end boundary)
+            if (position >= start && position < endEx) {
+                return i;
             }
         }
 
         if (position >= docLen) return visualLines.size() - 1;
 
         return Math.max(0, Math.min(visualLines.size() - 1, position));
+    }
+
+
+
+    public int getVisualLineEndPosition(int index) {
+        return this.visualLines.get(index).startPosition + this.visualLines.get(index).length();
+    }
+
+    public int findVisualLineEnd(int pos) {
+        int index = getVisualLineIndex(pos);
+        if (index < 0) return -1;
+        VisualLine cur = visualLines.get(index);
+        int start = cur.startPosition;
+        int endEx = start + cur.length(); // exclusive end
+        if (cur.hasNewLineChar()) {
+            return 0;
+        }
+        return 0;
     }
 
 
@@ -277,26 +335,6 @@ public class EditorCanvas extends Canvas {
 
     public int getVisualLineLength(int index) {
         return this.visualLines.get(index).length();
-    }
-
-    public int getVisualLineEndPosition(int index) {
-        return this.visualLines.get(index).startPosition + this.visualLines.get(index).length();
-    }
-
-    public int getVisualLineIndex(int position) {
-        List<VisualLine> lines = this.visualLines;
-        int currentVisualLineIndex;
-        if (lines.isEmpty()) return -1;
-
-        for (int i = 0; i < lines.size(); i++) {
-            VisualLine line = lines.get(i);
-            int lineEndPosition = line.startPosition + line.length();
-            if (position >= line.startPosition && position <= lineEndPosition) {
-                currentVisualLineIndex = i;
-                return currentVisualLineIndex;
-            }
-        }
-        return -1;
     }
 
     public int getVisualLineColumn(int visualLineIndex, int position) {

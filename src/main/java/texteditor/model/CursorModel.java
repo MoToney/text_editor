@@ -9,11 +9,15 @@ public class CursorModel {
     private int position;
     private final PieceTable document;
     private final EditorCanvas canvas;
+    public enum Affinity {LEFT, RIGHT}
+
+    private Affinity affinity;
 
     public CursorModel(PieceTable document, EditorCanvas canvas) {
         this.document = document;
         this.canvas = canvas;
         this.position = 0;
+        this.affinity = affinity.RIGHT;
     }
 
     public int getPosition() {
@@ -25,6 +29,9 @@ public class CursorModel {
             this.position = position;
         }
     }
+
+    public Affinity getAffinity() {return affinity;}
+    public void setAffinity(Affinity affinity) {this.affinity = affinity;}
 
     public void moveRight() {
         setPosition(position + 1);

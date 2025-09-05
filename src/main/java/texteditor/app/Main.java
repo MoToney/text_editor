@@ -11,11 +11,8 @@ import texteditor.view.EditorCanvas;
 
 public class Main extends Application {
     private static final String INITIAL_TEXT =
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n" +
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
-                    "aaaaaaaaaaaaaaaa";
+            "Ends at 11\n" +
+                    "This should start at 26 the length is harder to know because this sentence is longer";
 
 
     @Override
@@ -30,7 +27,7 @@ public class Main extends Application {
         canvas.draw();
 
         StackPane root = new StackPane(canvas);
-        Scene scene = new Scene(root, 800, 600);
+        Scene scene = new Scene(root, 300, 300);
 
         // hand off to controller
         new EditorController(scene, document, cursor, canvas);

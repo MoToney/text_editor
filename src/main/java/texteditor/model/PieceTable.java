@@ -110,66 +110,8 @@ public class PieceTable {
         return this.lineCache.size();
     }
 
-    public int getLineIndex(int position) {
-        if (position < 0 || position > totalLength) {
-            throw new IndexOutOfBoundsException("Position is out of bounds: " + position);
-        }
-
-        int runningTotal = 0;
-        for (int i = 0; i < lineCache.size(); i++) {
-            Line line = lineCache.get(i);
-            if (position < runningTotal + line.length) {
-                return i;
-            }
-            runningTotal += line.length;
-        }
-        return lineCache.size() - 1;
-    }
-
-    public int getColumnIndex(int position) {
-        int lineIndex = getLineIndex(position);
-        int runningTotal = 0;
-
-        for (int i = 0; i < lineIndex; i++) {
-            runningTotal += lineCache.get(i).length;
-        }
-
-        return position - runningTotal;
-    }
-
-    public int getPosition(int lineIndex, int columnIndex) {
-        int position = 0;
-        for (int i = 0; i < lineIndex; i++) {
-            position += lineCache.get(i).length;
-        }
-        position += columnIndex;
-        return position;
-    }
-
-    public int getPositionAtEndOfLine(int lineIndex) {
-        int position = 0;
-        for (int i = 0; i <= lineIndex; i++) {
-            position += lineCache.get(i).length;
-        }
-        return position;
-    }
-
-    public int getPositionAtStartOfLine(int lineIndex) {
-        int position = 0;
-        if (lineIndex > 0) position = getPositionAtEndOfLine(lineIndex - 1);
-        return position;
-    }
-
     public int getLineLength(int lineIndex) {
         return getLine(lineIndex).length();
-    }
-
-    public int getRemainingLineLength(int position) {
-        int lineIndex = getLineIndex(position);
-        int columnIndex = getColumnIndex(position);
-        int lineLength = getLineLength(lineIndex);
-
-        return lineLength - columnIndex;
     }
 
     public boolean isLastLine(int lineIndex) {
@@ -203,9 +145,6 @@ public class PieceTable {
         }
 
         String lineText = lineBuilder.toString();
-        if (lineText.endsWith("\n")) {
-            return lineText.substring(0, lineText.length() - 1);
-        }
         return lineText;
     }
 
