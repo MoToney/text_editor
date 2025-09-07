@@ -9,8 +9,8 @@ public class VisualLine {
 
 
     public VisualLine(String text, int startPosition, boolean hasNewlineChar) {
-        this.text = text;
-        this.startPosition = startPosition;
+        this.text = text != null ? text : "";
+        this.startPosition = Math.max(0, startPosition);
         this.hasNewlineChar = hasNewlineChar;
     }
 
