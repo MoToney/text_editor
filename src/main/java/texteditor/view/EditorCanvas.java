@@ -11,7 +11,10 @@ import javafx.scene.text.Text;
 import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
+import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.layout.VisualLine;
+import texteditor.view.text.JavaFXTextMeasurer;
+import texteditor.view.text.TextMeasurer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,17 +22,14 @@ import java.util.List;
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private CursorModel cursor;
-    private final List<VisualLine> visualLines = new ArrayList<>();
-
-
+    private final TextLayoutEngine layoutEngine;
+    private  List<VisualLine> visualLines = new ArrayList<>();
 
     private final Font font = new Font("Consolas", 26);
-    private final Text textMetrics = new Text();
-    private double paddingLeft = 10.0;
-    private double paddingRight = 10.0;
-    private double paddingTop = 25.0;
-    private double lineHeight = 18.0;
-    private double baselineOffset = 14.0;
+    private final TextMeasurer measurer = new JavaFXTextMeasurer(font);
+
+    private final double paddingHorizontal;
+    private final double paddingTop;
 
     private double cursorX = 0;
     private double cursorY = 0;
@@ -37,14 +37,15 @@ public class EditorCanvas extends Canvas {
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    private boolean phantomAtEnd = false;
-    private int phantomLineIndex = -1;
-    private final double phantomOverhangPx = 2.0;
-
-    public EditorCanvas(PieceTable document) {
+    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, double paddingHorizontal, double paddingTop) {
         super(250, 300);
+
         this.document = document;
+        this.layoutEngine = layoutEngine;
         this.cursor = null;
+
+        this.paddingHorizontal = paddingHorizontal;
+        this.paddingTop = paddingTop;
 
         this.cursorBlinkTimeline = new Timeline(
                 new KeyFrame(Duration.seconds(0.5), event -> {
@@ -65,6 +66,7 @@ public class EditorCanvas extends Canvas {
                 cursorBlinkTimeline.pause();
             }
         });
+
     }
 
     public void setCursor(CursorModel cursor) {
@@ -76,27 +78,6 @@ public class EditorCanvas extends Canvas {
         cursorBlinkTimeline.playFromStart();
     }
 
-    public void calculateFontMetrics() {
-        textMetrics.setFont(font);
-
-        double calculatedLineSpacing = textMetrics.getLineSpacing();
-
-        // The fallback is kept for robustness, but should no longer be triggered.
-        if (calculatedLineSpacing <= 0) {
-            Bounds bounds = textMetrics.getLayoutBounds();
-            this.lineHeight = bounds.getHeight() * 1.2;
-        } else {
-            this.lineHeight = calculatedLineSpacing;
-        }
-
-        this.baselineOffset = textMetrics.getBaselineOffset();
-    }
-
-    private double measureWidth(String s) {
-        if (s == null || s.isEmpty()) return 0.0;
-        textMetrics.setText(s);
-        return textMetrics.getLayoutBounds().getWidth();
-    }
 
     public void draw() {
         GraphicsContext gc = this.getGraphicsContext2D();
@@ -109,81 +90,15 @@ public class EditorCanvas extends Canvas {
     }
 
     public void drawDocument(GraphicsContext gc) {
-        this.visualLines.clear();
-        double availableWidth = getWidth() - paddingLeft - paddingRight;
-        int logicalLineStartPosition = 0;
-        int lineCount = document.getLineCount();
-
-        for (int i = 0; i < lineCount; i++) {
-            String logicalLine = document.getLine(i);
-
-            // --- Extract any trailing newline sequence and keep the text content separate ---
-            String newline = "";
-            String content = logicalLine;
-            if (content.endsWith("\r\n")) {
-                newline = "\r\n";
-                content = content.substring(0, content.length() - 2);
-            } else if (content.endsWith("\n") || content.endsWith("\r")) {
-                newline = content.substring(content.length() - 1);
-                content = content.substring(0, content.length() - 1);
-            }
-
-            // Measure the full visible width using content only (newline has no horizontal width)
-            textMetrics.setText(content);
-            double contentWidth = textMetrics.getLayoutBounds().getWidth();
-
-            int logicalLineLength = document.getLineLength(i);
-            boolean hasHardLineBreak = !newline.isEmpty(); // whether this logical line ended with newline
-
-            // If entire content fits, create a single visual line containing content + newline (if any)
-            if (contentWidth <= availableWidth) {
-                String textForVisual = content + newline; // newline preserved for caret/indexing
-                visualLines.add(new VisualLine(textForVisual, logicalLineStartPosition, hasHardLineBreak));
-            } else {
-                // Wrapping: operate on content (no newline). Ensure the newline is appended to the last piece.
-                String remaining = content;
-                int visualStartPos = logicalLineStartPosition;
-
-                while (!remaining.isEmpty()) {
-                    int breakPoint = -1;
-                    // Find largest j such that remaining.substring(0, j) fits
-                    for (int j = 1; j <= remaining.length(); j++) {
-                        String sub = remaining.substring(0, j);
-                        if (measureWidth(sub) > availableWidth) {
-                            breakPoint = j - 1;
-                            break;
-                        }
-                    }
-                    if (breakPoint <= 0) breakPoint = remaining.length();
-
-                    String piece = remaining.substring(0, breakPoint);
-                    remaining = remaining.substring(breakPoint);
-
-                    // If this is the last piece (no remaining content) and there is a newline, append it
-                    boolean isLastPiece = remaining.isEmpty();
-                    String pieceToStore = isLastPiece && !newline.isEmpty() ? piece + newline : piece;
-                    boolean pieceHasHardBreak = isLastPiece && hasHardLineBreak;
-
-                    visualLines.add(new VisualLine(pieceToStore, visualStartPos, pieceHasHardBreak));
-
-                    // Advance the visualStartPos by the logical characters we just assigned.
-                    // Note: newline contributes to logical positions only when appended to the last piece.
-                    visualStartPos += piece.length();
-                    if (isLastPiece && !newline.isEmpty()) {
-                        visualStartPos += newline.length(); // account for \n or \r\n in the buffer index
-                    }
-                }
-            }
-
-            // Advance the logicalLineStartPosition by the full logical length (includes newline if present)
-            logicalLineStartPosition += logicalLineLength;
-        }
+        double availableWidth = getWidth() - paddingHorizontal - paddingHorizontal;
+        var layoutResult = layoutEngine.calculateLayout(document, availableWidth);
+        visualLines = layoutResult.getVisualLines();
 
         // Draw visual lines
         for (int l = 0; l < visualLines.size(); l++) {
             String lineToDraw = visualLines.get(l).text();
-            double y = paddingTop + baselineOffset + (l * lineHeight);
-            gc.fillText(lineToDraw, paddingLeft, y);
+            double y = paddingTop + measurer.getBaselineOffset() + (l * measurer.getLineHeight());
+            gc.fillText(lineToDraw, paddingHorizontal, y);
         }
     }
 
@@ -311,7 +226,7 @@ public class EditorCanvas extends Canvas {
 
 
     public void updateCursorLocation() {
-        if (cursor == null || visualLines.isEmpty()) return;
+        if (cursor == null ) return;
 
         int pos = cursor.getPosition();
         int vIndex =findVisualLineIndexForPosition(pos);
@@ -327,14 +242,14 @@ public class EditorCanvas extends Canvas {
 
         double x;
         if (col == 0) {
-            x = paddingLeft;
+            x = paddingHorizontal;
         } else {
             // safe: col is clamped into [0, len]
             String before = vline.text().substring(0, col);
-            x = paddingLeft + measureWidth(before);
+            x = paddingHorizontal + measurer.measureWidth(before);
         }
 
-        double y = paddingTop + baselineOffset + (vIndex * lineHeight);
+        double y = paddingTop + measurer.getBaselineOffset() + (vIndex * measurer.getLineHeight());
 
         this.cursorX = x;
         this.cursorY = y;
@@ -422,10 +337,10 @@ public class EditorCanvas extends Canvas {
             return;
         }
         // Calculate the top of the line by subtracting the baseline offset from the cursor's Y.
-        double lineTop = cursorY - baselineOffset;
+        double lineTop = cursorY - measurer.getBaselineOffset();
 
         // Calculate the bottom of the line.
-        double lineBottom = lineTop + lineHeight;
+        double lineBottom = lineTop + measurer.getLineHeight();
 
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);

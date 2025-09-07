@@ -1,6 +1,7 @@
 package texteditor.app;
 
 import javafx.application.Application;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
@@ -8,6 +9,9 @@ import texteditor.controller.EditorController;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.EditorCanvas;
+import texteditor.view.layout.TextLayoutEngine;
+import texteditor.view.text.JavaFXTextMeasurer;
+import texteditor.view.text.TextMeasurer;
 
 public class Main extends Application {
     private static final String INITIAL_TEXT =
@@ -18,11 +22,15 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
             PieceTable document = new PieceTable(INITIAL_TEXT);
-            EditorCanvas canvas = new EditorCanvas(document);
+
+            Font font = new Font("Consolas", 26);
+            TextMeasurer textMeasurer = new JavaFXTextMeasurer(font);
+
+            TextLayoutEngine layoutEngine = new TextLayoutEngine(textMeasurer);
+            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, 10.0, 25.0);
             CursorModel cursor = new CursorModel(document, canvas);
 
             canvas.setCursor(cursor);
-            canvas.calculateFontMetrics();
             canvas.draw();
 
             StackPane root = new StackPane(canvas);
