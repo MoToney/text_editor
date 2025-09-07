@@ -17,23 +17,22 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
-        PieceTable document = new PieceTable(INITIAL_TEXT);
-        EditorCanvas canvas = new EditorCanvas(document);
-        CursorModel cursor = new CursorModel(document, canvas);
+            PieceTable document = new PieceTable(INITIAL_TEXT);
+            EditorCanvas canvas = new EditorCanvas(document);
+            CursorModel cursor = new CursorModel(document, canvas);
 
-        canvas.setCursor(cursor);
+            canvas.setCursor(cursor);
+            canvas.calculateFontMetrics();
+            canvas.draw();
 
-        canvas.calculateFontMetrics();
-        canvas.draw();
+            StackPane root = new StackPane(canvas);
+            Scene scene = new Scene(root, 300, 300);
 
-        StackPane root = new StackPane(canvas);
-        Scene scene = new Scene(root, 300, 300);
+            // hand off to controller
+            new EditorController(scene, document, cursor, canvas);
 
-        // hand off to controller
-        new EditorController(scene, document, cursor, canvas);
-
-        stage.setTitle("Minimal Text Editor - M0");
-        stage.setScene(scene);
-        stage.show();
+            stage.setTitle("Minimal Text Editor - M0");
+            stage.setScene(scene);
+            stage.show();
     }
 }

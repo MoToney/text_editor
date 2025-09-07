@@ -30,8 +30,7 @@ public class EditorController {
             } else if (event.getCode() == KeyCode.RIGHT) {
                 canvas.moveRight();
             } else if (event.getCode() == KeyCode.UP) {
-                cursor.moveUp();
-                modelChanged = true;
+                canvas.moveUp();
             } else if (event.getCode() == KeyCode.DOWN) {
                 canvas.moveDown();
             } else if (event.getCode() == KeyCode.END) {

@@ -310,8 +310,6 @@ public class PieceTable {
         testTable.removeText(10, 5);
         System.out.println(testTable.getText());
 
-
-
         System.out.println(testTable.getDocumentLength());
 
         System.out.println(testTable.getLineCount());

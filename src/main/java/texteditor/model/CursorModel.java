@@ -1,7 +1,7 @@
 package texteditor.model;
 
 import texteditor.view.EditorCanvas;
-import texteditor.view.EditorCanvas.VisualLine;
+import texteditor.view.layout.VisualLine;
 
 import java.util.List;
 
