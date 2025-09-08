@@ -4,6 +4,7 @@ import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.layout.VisualLine;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class CursorPositionCalculator {
@@ -101,49 +102,31 @@ public class CursorPositionCalculator {
         }
     }
 
-    public int findVisualLineIndex(int position, CursorModel.Affinity affinity, List<VisualLine> visualLines) {
-        if (visualLines.isEmpty()) return -1;
-
-        int docLength = document.getDocumentLength();
-        position = Math.max(0, Math.min(position, docLength));
-
-        for (int i = 0; i < visualLines.size(); i++) {
-            VisualLine line = visualLines.get(i);
-            int start = line.startPosition();
-            int end = line.endPosition();
-
-            if (position >= start && position <= end) {
-                return i;
-            }
-        }
-        return Math.max(0, visualLines.size() - 1);
-    }
-
-    /*
-    public int findLineIndex(int position, List<VisualLine> visualLines) {
+    public int findVisualLineIndex(int position, CursorModel.Affinity affinity,  List<VisualLine> visualLines) {
         if (visualLines.isEmpty()) return -1;
 
         int docLength = document.getDocumentLength();
         position = Math.max(0, Math.min(position, docLength));
 
         int left = 0, right = visualLines.size() - 1;
+        int result = -1;
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             VisualLine line = visualLines.get(mid);
 
-            if (position > line.endPosition()) {
-                left = mid + 1;
+            if (position >= line.startPosition() && position <= line.endPosition()) {
+                result = mid;
+                right = mid - 1;
             }
             else if (position < line.startPosition()) {
                 right = mid - 1;
             } else {
-                return mid;
+                left = mid + 1;
             }
         }
-        return Math.max(0, visualLines.size() - 1);
+        return result != -1 ? result : Math.max(0, visualLines.size() - 1);
     }
-
-     */
 
     public int adjustForAffinity(int position, int lineIndex, CursorModel.Affinity affinity, List<VisualLine> visualLines) {
         VisualLine line = visualLines.get(lineIndex);
@@ -171,4 +154,5 @@ public class CursorPositionCalculator {
             if (affinity == null) throw new IllegalArgumentException("Affinity cannot be null");
         }
     }
+
 }
