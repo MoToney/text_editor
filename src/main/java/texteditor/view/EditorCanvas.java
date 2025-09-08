@@ -168,7 +168,8 @@ public class EditorCanvas extends Canvas {
         if (cursor == null ) return;
 
         int pos = cursor.getPosition();
-        int vIndex =findVisualLineIndexForPosition(pos);
+        int vIndex =cursorCalculator.findVisualLineIndex(pos, cursor.getAffinity(), visualLines);
+        vIndex = cursorCalculator.adjustForAffinity(pos, vIndex, cursor.getAffinity(), visualLines);
 
         if (vIndex < 0) {
             vIndex = visualLines.size() - 1;

@@ -37,21 +37,16 @@ public class EditorController {
                 canvas.moveEnd();
             } else if (event.getCode() == KeyCode.HOME) {
                 canvas.moveHome();
-                modelChanged = true;
             } else if (event.getCode() == KeyCode.ENTER) {
                 document.insertText(cursor.getPosition(), "\n");
-                cursor.moveRight();
-                modelChanged = true;
+                canvas.moveRight();
             } else if (event.getCode().isLetterKey() || event.getCode().isDigitKey() || event.getText().length() == 1) {
                 document.insertText(cursor.getPosition(), event.getText());
-                cursor.moveRight();
-                modelChanged = true;
+                canvas.moveRight();
             } else if (event.getCode() == KeyCode.BACK_SPACE) {
                 document.removeText(cursor.getPosition() - 1, 1);
                 canvas.moveLeft();
-                modelChanged = true;
             }
-
             if (modelChanged) {
                 canvas.resetCursorBlink();
                 canvas.draw();

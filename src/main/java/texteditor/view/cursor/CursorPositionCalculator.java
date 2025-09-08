@@ -32,9 +32,9 @@ public class CursorPositionCalculator {
 
     public CursorPosition calculateLineStartMovement(CursorModel cursor, List<VisualLine> visualLines) {
         int currentPosition = cursor.getPosition();
-        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-        // lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
 
+        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
+        lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
         if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
 
         VisualLine line = visualLines.get(lineIndex);
@@ -45,9 +45,9 @@ public class CursorPositionCalculator {
 
     public CursorPosition calculateLineEndMovement(CursorModel cursor, List<VisualLine> visualLines) {
         int currentPosition = cursor.getPosition();
-        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-        // lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
 
+        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
+        lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
         if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
 
         VisualLine line = visualLines.get(lineIndex);
@@ -69,10 +69,9 @@ public class CursorPositionCalculator {
      */
     public CursorPosition calculateVerticalMovement(CursorModel cursor, List<VisualLine> visualLines, int direction) {
         int currentPosition = cursor.getPosition();
+
         int currentLineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-
-        // currentLineIndex = adjustForAffinity(currentPosition, currentLineIndex, cursor.getAffinity(), visualLines);
-
+        currentLineIndex = adjustForAffinity(currentPosition, currentLineIndex, cursor.getAffinity(), visualLines);
         if (currentLineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
 
         int targetLineIndex = currentLineIndex + direction;
@@ -113,18 +112,8 @@ public class CursorPositionCalculator {
             int start = line.startPosition();
             int end = line.endPosition();
 
-            if (position > start && position < end) {
+            if (position >= start && position <= end) {
                 return i;
-            }
-
-            if (position == start) {
-                if (i == 0) return 0;
-                return (affinity == CursorModel.Affinity.RIGHT) ? i - 1 : i;
-            }
-
-            if (position == end) {
-                if (i == visualLines.size() - 1) return i;
-                return (affinity == CursorModel.Affinity.LEFT) ? i : i + 1;
             }
         }
         return Math.max(0, visualLines.size() - 1);
@@ -154,6 +143,8 @@ public class CursorPositionCalculator {
         return Math.max(0, visualLines.size() - 1);
     }
 
+     */
+
     public int adjustForAffinity(int position, int lineIndex, CursorModel.Affinity affinity, List<VisualLine> visualLines) {
         VisualLine line = visualLines.get(lineIndex);
 
@@ -168,7 +159,7 @@ public class CursorPositionCalculator {
         }
         return lineIndex;
     }
-    */
+
 
     public int findVisualColumnIndex(int position, VisualLine visualLine) {
         return position - visualLine.startPosition();
