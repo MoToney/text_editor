@@ -1,5 +1,7 @@
 package texteditor.view.text;
 
+import javafx.scene.text.Font;
+
 public interface TextMeasurer {
 
     double measureWidth(String text);
@@ -7,4 +9,6 @@ public interface TextMeasurer {
     double getLineHeight();
 
     double getBaselineOffset();
+
+    Font getFont();
 }

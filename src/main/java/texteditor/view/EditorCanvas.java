@@ -31,19 +31,17 @@ public class EditorCanvas extends Canvas {
     private final double paddingHorizontal;
     private final double paddingTop;
 
-    private double cursorX = 0;
-    private double cursorY = 0;
 
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorManager cursorCalculator,
+    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorManager cursorManager,
                         double paddingHorizontal, double paddingTop) {
         super(250, 300);
 
         this.document = document;
         this.layoutEngine = layoutEngine;
-        this.cursorCalculator = cursorCalculator;
+        this.cursorCalculator = cursorManager;
 
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
