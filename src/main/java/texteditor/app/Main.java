@@ -9,6 +9,7 @@ import texteditor.controller.EditorController;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.EditorCanvas;
+import texteditor.view.cursor.CursorPositionCalculator;
 import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.text.JavaFXTextMeasurer;
 import texteditor.view.text.TextMeasurer;
@@ -22,12 +23,12 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
             PieceTable document = new PieceTable(INITIAL_TEXT);
-
-            Font font = new Font("Consolas", 26);
-            TextMeasurer textMeasurer = new JavaFXTextMeasurer(font);
-
+            TextMeasurer textMeasurer = new JavaFXTextMeasurer(new Font("Consolas", 26));
             TextLayoutEngine layoutEngine = new TextLayoutEngine(textMeasurer);
-            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, 10.0, 25.0);
+            CursorPositionCalculator cursorCalculator = new CursorPositionCalculator(document);
+
+
+            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, cursorCalculator, 10.0, 25.0);
             CursorModel cursor = new CursorModel(document, canvas);
 
             canvas.setCursor(cursor);

@@ -11,6 +11,7 @@ import javafx.scene.text.Text;
 import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
+import texteditor.view.cursor.CursorPositionCalculator;
 import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.layout.VisualLine;
 import texteditor.view.text.JavaFXTextMeasurer;
@@ -21,8 +22,10 @@ import java.util.List;
 
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
-    private CursorModel cursor;
     private final TextLayoutEngine layoutEngine;
+    private final CursorPositionCalculator cursorCalculator;
+
+    private CursorModel cursor;
     private  List<VisualLine> visualLines = new ArrayList<>();
 
     private final Font font = new Font("Consolas", 26);
@@ -37,11 +40,13 @@ public class EditorCanvas extends Canvas {
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, double paddingHorizontal, double paddingTop) {
+    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorPositionCalculator cursorCalculator,
+                        double paddingHorizontal, double paddingTop) {
         super(250, 300);
 
         this.document = document;
         this.layoutEngine = layoutEngine;
+        this.cursorCalculator = cursorCalculator;
         this.cursor = null;
 
         this.paddingHorizontal = paddingHorizontal;
@@ -104,24 +109,18 @@ public class EditorCanvas extends Canvas {
 
     public void moveLeft() {
         if (cursor == null) return;
-        int currentPos = cursor.getPosition();
-        if (currentPos > 0) {
-            cursor.setPosition(currentPos - 1);
-            // Set RIGHT affinity for backward navigation.
-            cursor.setAffinity(CursorModel.Affinity.RIGHT);
-        }
+        var newPosition = cursorCalculator.calculateLeftMovement(cursor);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
     }
 
     public void moveRight() {
         if (cursor == null) return;
-        int currentPos = cursor.getPosition();
-        if (currentPos < document.getDocumentLength()) {
-            cursor.setPosition(currentPos + 1);
-            // Set LEFT affinity for forward navigation.
-            cursor.setAffinity(CursorModel.Affinity.RIGHT);
-        }
+        var newPosition = cursorCalculator.calculateRightMovement(cursor);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
     }
