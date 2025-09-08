@@ -142,57 +142,21 @@ public class EditorCanvas extends Canvas {
     }
 
     public void moveDown() {
-        int currentPos = cursor.getPosition();
-        if (currentPos > document.getDocumentLength()) { return; }
-
-        int index = findVisualLineIndexForPosition(currentPos);
-        if (index == -1 || index == visualLines.size() - 1)  return;
-
-        VisualLine cur = visualLines.get(index);
-        int start = cur.startPosition();
-        int col = findVisualColumnByLine(cur);
-
-        VisualLine nextLine = visualLines.get(index + 1);
-        if (col >= nextLine.length()) {
-            if (nextLine.hasNewlineChar()) {
-                cursor.setPosition(nextLine.length() - 1 + nextLine.startPosition());
-            } else {
-                cursor.setPosition(nextLine.length() + nextLine.startPosition());
-                cursor.setAffinity(CursorModel.Affinity.LEFT);
-            }
-        } else {
-            cursor.setPosition(nextLine.startPosition() + col);
-            }
-
+        if (cursor == null) return;
+        var newPosition = cursorCalculator.calculateVerticalMovement(cursor, visualLines, 1);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
     }
 
     public void moveUp() {
-        int currentPos = cursor.getPosition();
-        if (currentPos > document.getDocumentLength()) { return; }
-
-        int index = findVisualLineIndexForPosition(currentPos);
-        if (index < 1)  return;
-
-        VisualLine cur = visualLines.get(index);
-        int start = cur.startPosition();
-        int col = findVisualColumnByLine(cur);
-
-        VisualLine prevLine = visualLines.get(index - 1);
-        if (col >= prevLine.length()) {
-            if (prevLine.hasNewlineChar()) {
-                cursor.setPosition(prevLine.length() - 1 + prevLine.startPosition());
-            } else {
-                cursor.setPosition(prevLine.length() + prevLine.startPosition());
-                cursor.setAffinity(CursorModel.Affinity.LEFT);
-            }
-        } else {
-            cursor.setPosition(prevLine.startPosition() + col);
-        }
+        if (cursor == null) return;
+        var newPosition = cursorCalculator.calculateVerticalMovement(cursor, visualLines, -1);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
-
     }
 
     public int findVisualColumnByLine(VisualLine line) {

@@ -70,10 +70,9 @@ public class TextLayoutEngine {
     }
 
     public int findOptimalBreakpoint(String text, double availableWidth) {
-        int left = 0;
-        int right = text.length();
+        int left = 0, right = text.length();
         while (left < right) {
-            int mid = left + (right - left + 1) / 2; // + 1 gets the last passing index and prevents infinite loop
+            int mid = left + (right - left + 1) / 2; // +1 gets the last passing index and prevents infinite loop (upper bound)
             String sub = text.substring(0, mid);
 
             if (textMeasurer.measureWidth(sub) <= availableWidth) {
