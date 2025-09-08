@@ -23,7 +23,6 @@ public class EditorCanvas extends Canvas {
     private final TextLayoutEngine layoutEngine;
     private final CursorManager cursorCalculator;
 
-    private CursorModel cursor;
     private  List<VisualLine> visualLines = new ArrayList<>();
 
     private final Font font = new Font("Consolas", 26);
@@ -45,7 +44,6 @@ public class EditorCanvas extends Canvas {
         this.document = document;
         this.layoutEngine = layoutEngine;
         this.cursorCalculator = cursorCalculator;
-        this.cursor = null;
 
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
@@ -72,9 +70,6 @@ public class EditorCanvas extends Canvas {
 
     }
 
-    public void setCursor(CursorModel cursor) {
-        this.cursor = cursor;
-    }
 
     public void resetCursorBlink() {
         isCursorVisible = true;
@@ -106,88 +101,43 @@ public class EditorCanvas extends Canvas {
     }
 
     public void moveLeft() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateLeftMovement(cursor);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveLeft();
         resetCursorBlink();
         draw();
     }
 
     public void moveRight() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateRightMovement(cursor);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveRight();
         resetCursorBlink();
         draw();
     }
 
     public void moveEnd() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateLineEndMovement(cursor, visualLines);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveToLineEnd(visualLines);
         resetCursorBlink();
         draw();
         }
 
     public void moveHome() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateLineStartMovement(cursor, visualLines);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveToLineStart(visualLines);
         resetCursorBlink();
         draw();
     }
 
     public void moveDown() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateVerticalMovement(cursor, visualLines, 1);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveVertical(visualLines, 1);
         resetCursorBlink();
         draw();
     }
 
     public void moveUp() {
-        if (cursor == null) return;
-        var newPosition = cursorCalculator.calculateVerticalMovement(cursor, visualLines, -1);
-        cursor.setPosition(newPosition.position());
-        cursor.setAffinity(newPosition.affinity());
+        cursorCalculator.moveVertical(visualLines, -1);
         resetCursorBlink();
         draw();
     }
 
     public void updateCursorLocation() {
-        if (cursor == null ) return;
-
-        int pos = cursor.getPosition();
-        int vIndex =cursorCalculator.findVisualLineIndex(pos, cursor.getAffinity(), visualLines);
-        vIndex = cursorCalculator.adjustForAffinity(pos, vIndex, cursor.getAffinity(), visualLines);
-
-        if (vIndex < 0) {
-            vIndex = visualLines.size() - 1;
-        }
-
-        VisualLine vline = visualLines.get(vIndex);
-        int lineStart = vline.startPosition();
-        int col = pos - lineStart;
-        col = Math.max(0, Math.min(col, vline.length()));
-
-        double x;
-        if (col == 0) {
-            x = paddingHorizontal;
-        } else {
-            // safe: col is clamped into [0, len]
-            String before = vline.text().substring(0, col);
-            x = paddingHorizontal + measurer.measureWidth(before);
-        }
-
-        double y = paddingTop + measurer.getBaselineOffset() + (vIndex * measurer.getLineHeight());
-
-        this.cursorX = x;
-        this.cursorY = y;
+        cursorCalculator.updateCursorLocation(visualLines);
     }
 
     public void drawCursor(GraphicsContext gc) {
@@ -195,14 +145,14 @@ public class EditorCanvas extends Canvas {
             return;
         }
         // Calculate the top of the line by subtracting the baseline offset from the cursor's Y.
-        double lineTop = cursorY - measurer.getBaselineOffset();
+        double lineTop = cursorCalculator.getCursorY() - measurer.getBaselineOffset();
 
         // Calculate the bottom of the line.
         double lineBottom = lineTop + measurer.getLineHeight();
 
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);
-        gc.strokeLine(cursorX, lineTop, cursorX, lineBottom);
+        gc.strokeLine(cursorCalculator.getCursorX(), lineTop, cursorCalculator.getCursorX(), lineBottom);
     }
 }
 

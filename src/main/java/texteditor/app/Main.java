@@ -25,13 +25,13 @@ public class Main extends Application {
             PieceTable document = new PieceTable(INITIAL_TEXT);
             TextMeasurer textMeasurer = new JavaFXTextMeasurer(new Font("Consolas", 26));
             TextLayoutEngine layoutEngine = new TextLayoutEngine(textMeasurer);
-            CursorManager cursorCalculator = new CursorManager(document);
+            CursorManager cursorCalculator = new CursorManager(document, textMeasurer, 10.0, 25.0);
 
 
             EditorCanvas canvas = new EditorCanvas(document, layoutEngine, cursorCalculator, 10.0, 25.0);
             CursorModel cursor = new CursorModel(document, canvas);
 
-            canvas.setCursor(cursor);
+            cursorCalculator.setCursor(cursor);
             canvas.draw();
 
             StackPane root = new StackPane(canvas);

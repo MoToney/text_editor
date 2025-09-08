@@ -3,90 +3,118 @@ package texteditor.view.cursor;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.layout.VisualLine;
+import texteditor.view.text.TextMeasurer;
 
 import java.util.List;
 
 public class CursorManager {
     private final PieceTable document;
+    private final TextMeasurer measurer;
+    private CursorModel cursor;
+    private double cursorX = 0;
+    private double cursorY = 0;
 
-    public CursorManager(PieceTable document) {
+    private final double paddingHorizontal;
+    private final double paddingTop;
+
+    public CursorManager(PieceTable document, TextMeasurer measurer, double paddingHorizontal, double paddingTop) {
         this.document = document;
+        this.measurer = measurer;
+        this.paddingHorizontal = paddingHorizontal;
+        this.paddingTop = paddingTop;
     }
 
-    public CursorPosition calculateLeftMovement(CursorModel cursor) {
+    public void setCursor(CursorModel cursor) {
+        this.cursor = cursor;
+    }
+
+    public void moveLeft() {
+        if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
-        if (currentPosition <= 0) {
-            return new CursorPosition(0, CursorModel.Affinity.RIGHT);
+        if (currentPosition > 0) {
+            cursor.setPosition(currentPosition - 1);
+            cursor.setAffinity(CursorModel.Affinity.RIGHT);
         }
-        return new CursorPosition(currentPosition - 1, CursorModel.Affinity.RIGHT);
     }
 
-    public CursorPosition calculateRightMovement(CursorModel cursor) {
+    public void moveRight() {
+        if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
-        int maxPosition = document.getDocumentLength();
-        if (currentPosition >= maxPosition) {
-            return new CursorPosition(maxPosition, CursorModel.Affinity.RIGHT);
+        if (currentPosition < document.getDocumentLength()) {
+            cursor.setPosition(currentPosition + 1);
+            cursor.setAffinity(CursorModel.Affinity.RIGHT);
         }
-        return new CursorPosition(currentPosition + 1, CursorModel.Affinity.RIGHT);
     }
 
-    public CursorPosition calculateLineStartMovement(CursorModel cursor, List<VisualLine> visualLines) {
+    public void moveToLineStart(List<VisualLine> visualLines) {
+        if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
+        if (currentPosition > document.getDocumentLength()) {return;}
 
-        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-        lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
-        if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
+        int lineIndex = findVisualLineIndex(currentPosition, visualLines);
+        lineIndex = adjustForAffinity(currentPosition, lineIndex, visualLines);
+        if (lineIndex == -1) return;
 
         VisualLine line = visualLines.get(lineIndex);
-        int startPosition = line.startPosition();
-
-        return new CursorPosition(startPosition, CursorModel.Affinity.RIGHT);
+        cursor.setPosition(line.startPosition());
+        cursor.setAffinity(CursorModel.Affinity.RIGHT);
     }
 
-    public CursorPosition calculateLineEndMovement(CursorModel cursor, List<VisualLine> visualLines) {
+    public void moveToLineEnd(List<VisualLine> visualLines) {
+        if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
+        if (currentPosition > document.getDocumentLength()) {return;}
 
-        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-        lineIndex = adjustForAffinity(currentPosition, lineIndex, cursor.getAffinity(), visualLines);
-        if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
+        int lineIndex = findVisualLineIndex(currentPosition, visualLines);
+        lineIndex = adjustForAffinity(currentPosition, lineIndex, visualLines);
+        if (lineIndex == -1) return;
 
         VisualLine line = visualLines.get(lineIndex);
-        int endPosition = line.endPosition();
 
         if (line.hasNewlineChar()) {
-            return new CursorPosition(endPosition - 1, CursorModel.Affinity.RIGHT);
+            cursor.setPosition(line.endPosition() -1);
         } else {
-            return new CursorPosition(endPosition, CursorModel.Affinity.LEFT);
+            cursor.setPosition(line.endPosition());
+            cursor.setAffinity(CursorModel.Affinity.LEFT);
         }
     }
 
     /**
      * Calculates the position of the cursor after vertical movement (moving to a line above (-1) or below (1))
-     * @param cursor The cursor object.
      * @param visualLines The visual lines on the screen.
      * @param direction The line to move to, either the previous line (up) which is -1 or the next line (down) which is 1
      * @return The new cursorPosition which is the numerical position and the cursor affinity
      */
-    public CursorPosition calculateVerticalMovement(CursorModel cursor, List<VisualLine> visualLines, int direction) {
+    public void moveVertical(List<VisualLine> visualLines, int direction) {
         int currentPosition = cursor.getPosition();
+        if (currentPosition > document.getDocumentLength()) {return;}
 
-        int currentLineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
-        currentLineIndex = adjustForAffinity(currentPosition, currentLineIndex, cursor.getAffinity(), visualLines);
-        if (currentLineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
+        int currentLineIndex = findVisualLineIndex(currentPosition, visualLines);
+        currentLineIndex = adjustForAffinity(currentPosition, currentLineIndex, visualLines);
 
         int targetLineIndex = currentLineIndex + direction;
-        if (targetLineIndex < 0 || targetLineIndex >= visualLines.size()) {
-            return new CursorPosition(currentPosition, cursor.getAffinity());
-        }
+        if (targetLineIndex < 0 || targetLineIndex >= visualLines.size()) {return;}
+
         VisualLine currentLine = visualLines.get(currentLineIndex);
         VisualLine targetLine = visualLines.get(targetLineIndex);
 
         int currentColumn = currentPosition - currentLine.startPosition();
+        int targetPosition;
 
-        return calculateTargetPosition(targetLine, currentColumn);
+        if (currentColumn >= targetLine.length()) {
+            if (targetLine.hasNewlineChar()) {
+                targetPosition = targetLine.startPosition() + targetLine.length() -1;
+            } else {
+                targetPosition = targetLine.startPosition() + targetLine.length();
+                cursor.setAffinity(CursorModel.Affinity.LEFT);
+            }
+        } else {
+            targetPosition = targetLine.startPosition() + currentColumn;
+        }
+        cursor.setPosition(targetPosition);
     }
 
-    private CursorPosition calculateTargetPosition( VisualLine targetLine, int desiredColumn) {
+    /*private CursorPosition calculateTargetPosition( VisualLine targetLine, int desiredColumn) {
         int maxColumn = targetLine.length();
 
         if (desiredColumn >= maxColumn) {
@@ -99,9 +127,9 @@ public class CursorManager {
         } else {
             return new CursorPosition(targetLine.startPosition() + desiredColumn, CursorModel.Affinity.RIGHT);
         }
-    }
+    }*/
 
-    public int findVisualLineIndex(int position, CursorModel.Affinity affinity,  List<VisualLine> visualLines) {
+    public int findVisualLineIndex(int position, List<VisualLine> visualLines) {
         if (visualLines.isEmpty()) return -1;
 
         int docLength = document.getDocumentLength();
@@ -127,31 +155,54 @@ public class CursorManager {
         return result != -1 ? result : Math.max(0, visualLines.size() - 1);
     }
 
-    public int adjustForAffinity(int position, int lineIndex, CursorModel.Affinity affinity, List<VisualLine> visualLines) {
+    public int adjustForAffinity(int position, int lineIndex, List<VisualLine> visualLines) {
         VisualLine line = visualLines.get(lineIndex);
 
         if (position == line.startPosition()) {
             if (lineIndex == 0) return 0;
-            return (affinity == CursorModel.Affinity.RIGHT) ? lineIndex - 1 : lineIndex;
+            return (cursor.getAffinity() == CursorModel.Affinity.RIGHT) ? lineIndex - 1 : lineIndex;
         }
 
         if (position == line.endPosition()) {
             if (lineIndex == visualLines.size() - 1) return lineIndex;
-            return (affinity == CursorModel.Affinity.LEFT) ? lineIndex : lineIndex + 1;
+            return (cursor.getAffinity() == CursorModel.Affinity.LEFT) ? lineIndex : lineIndex + 1;
         }
         return lineIndex;
     }
+
+    public void updateCursorLocation(List<VisualLine> visualLines) {
+        if (cursor == null || visualLines.isEmpty()) {return;}
+
+        int pos = cursor.getPosition();
+        int vIndex =findVisualLineIndex(pos, visualLines);
+        vIndex = adjustForAffinity(pos, vIndex, visualLines);
+
+        if (vIndex < 0) {
+            vIndex = visualLines.size() - 1;
+        }
+
+        VisualLine vline = visualLines.get(vIndex);
+        int lineStart = vline.startPosition();
+        int col = pos - lineStart;
+        col = Math.max(0, Math.min(col, vline.length()));
+
+        double x = (col == 0) ? paddingHorizontal :
+                paddingHorizontal + measurer.measureWidth(vline.text().substring(0, col));
+
+
+        double y = paddingTop + measurer.getBaselineOffset() + (vIndex * measurer.getLineHeight());
+
+        this.cursorX = x;
+        this.cursorY = y;
+    }
+
+    public double getCursorX() { return cursorX;}
+    public double getCursorY() { return cursorY;}
 
 
     public int findVisualColumnIndex(int position, VisualLine visualLine) {
         return position - visualLine.startPosition();
     }
 
-    public record CursorPosition(int position, CursorModel.Affinity affinity) {
-        public CursorPosition {
-            if (position < 0) throw new IllegalArgumentException("Position cannot be negative");
-            if (affinity == null) throw new IllegalArgumentException("Affinity cannot be null");
-        }
-    }
 
 }
