@@ -4,13 +4,12 @@ import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.layout.VisualLine;
 
-import java.util.Arrays;
 import java.util.List;
 
-public class CursorPositionCalculator {
+public class CursorManager {
     private final PieceTable document;
 
-    public CursorPositionCalculator(PieceTable document) {
+    public CursorManager(PieceTable document) {
         this.document = document;
     }
 

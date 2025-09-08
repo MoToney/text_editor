@@ -9,7 +9,7 @@ import javafx.scene.text.Font;
 import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
-import texteditor.view.cursor.CursorPositionCalculator;
+import texteditor.view.cursor.CursorManager;
 import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.layout.VisualLine;
 import texteditor.view.text.JavaFXTextMeasurer;
@@ -21,7 +21,7 @@ import java.util.List;
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private final TextLayoutEngine layoutEngine;
-    private final CursorPositionCalculator cursorCalculator;
+    private final CursorManager cursorCalculator;
 
     private CursorModel cursor;
     private  List<VisualLine> visualLines = new ArrayList<>();
@@ -38,7 +38,7 @@ public class EditorCanvas extends Canvas {
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorPositionCalculator cursorCalculator,
+    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorManager cursorCalculator,
                         double paddingHorizontal, double paddingTop) {
         super(250, 300);
 
@@ -159,11 +159,6 @@ public class EditorCanvas extends Canvas {
         draw();
     }
 
-    public int findVisualColumnByLine(VisualLine line) {
-        return cursor.getPosition() - line.startPosition();
-    }
-
-
     public void updateCursorLocation() {
         if (cursor == null ) return;
 
@@ -195,83 +190,6 @@ public class EditorCanvas extends Canvas {
         this.cursorY = y;
     }
 
-    public int findVisualLineIndexForPosition(int position) {
-            if (visualLines.isEmpty()) return -1;
-
-            int docLen = document.getDocumentLength();
-            position = Math.max(0, Math.min(position, docLen));
-
-            for (int i = 0; i < visualLines.size(); i++) {
-                VisualLine cur = visualLines.get(i);
-                int start = cur.startPosition();
-                int endEx = start + cur.length();
-
-                // if position is within this line
-                if (position > start && position < endEx) {
-                    return i;
-                }
-
-                // if position is at the start of this line
-                if (position == start) {
-                    if (i == 0) return 0; // Very first character must be on the first line.
-                    // Affinity decides: RIGHT belongs to the previous line.
-                    return (cursor.getAffinity() == CursorModel.Affinity.RIGHT) ? i - 1 : i;
-                }
-
-                // Case 3: Position is at the end of this line.
-                if (position == endEx) {
-                    if (i == visualLines.size() - 1) return i; // Very last position must be on the last line.
-                    // For a soft wrap, affinity decides: LEFT belongs to this line.
-                    return (cursor.getAffinity() == CursorModel.Affinity.LEFT) ? i : i + 1;
-                }
-            }
-
-            if (position >= docLen) return visualLines.size() - 1;
-
-            return Math.max(0, Math.min(visualLines.size() - 1, position));
-        }
-
-    public int getVisualLineIndex(int position) {
-        if (visualLines.isEmpty()) return -1;
-
-        int docLen = document.getDocumentLength();
-        if (position < 0) return 0;
-
-        for (int i = 0; i < visualLines.size(); i++) {
-            VisualLine cur = visualLines.get(i);
-            int start = cur.startPosition();                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-            int endEx = start + cur.length();
-
-            // if position is within this line (including the end boundary)
-            if (position >= start && position < endEx) {
-                return i;
-            }
-        }
-
-        if (position >= docLen) return visualLines.size() - 1;
-
-        return Math.max(0, Math.min(visualLines.size() - 1, position));
-    }
-
-
-
-    public int getVisualLineEndPosition(int index) {
-        return this.visualLines.get(index).startPosition() + this.visualLines.get(index).length();
-    }
-
-    public int findVisualLineEnd(int pos) {
-        int index = getVisualLineIndex(pos);
-        if (index < 0) return -1;
-        VisualLine cur = visualLines.get(index);
-        int start = cur.startPosition();
-        int endEx = start + cur.length(); // exclusive end
-        if (cur.hasNewlineChar()) {
-            return 0;
-        }
-        return 0;
-    }
-
-
     public void drawCursor(GraphicsContext gc) {
         if (!isCursorVisible) {
             return;
@@ -285,43 +203,6 @@ public class EditorCanvas extends Canvas {
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.5);
         gc.strokeLine(cursorX, lineTop, cursorX, lineBottom);
-    }
-
-
-    public List<VisualLine> getVisualLines() {
-        return this.visualLines;
-    }
-
-    public VisualLine getVisualLine(int index) {
-        return this.visualLines.get(index);
-    }
-
-    public String getVisualLineText(int index) {
-        return this.visualLines.get(index).text();
-    }
-
-    public int getVisualLineStartPosition(int index) {
-        return this.visualLines.get(index).startPosition();
-    }
-
-    public int getVisualLineLength(int index) {
-        return this.visualLines.get(index).length();
-    }
-
-    public int getVisualLineColumn(int visualLineIndex, int position) {
-        VisualLine line = visualLines.get(visualLineIndex);
-        int column = position - line.startPosition();
-        return column;
-    }
-
-    public int getVisualPosition(int visualLineIndex, int column) {
-        VisualLine line = visualLines.get(visualLineIndex);
-        int i = line.startPosition() + column;
-        return i;
-    }
-
-    public boolean isLastLine(int visualLineIndex) {
-        return visualLineIndex == visualLines.size() - 1;
     }
 }
 
