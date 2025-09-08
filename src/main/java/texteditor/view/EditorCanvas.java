@@ -2,12 +2,10 @@ package texteditor.view;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.geometry.Bounds;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.scene.text.Text;
 import javafx.util.Duration;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
@@ -127,40 +125,18 @@ public class EditorCanvas extends Canvas {
 
     public void moveEnd() {
         if (cursor == null) return;
-        int currentPos = cursor.getPosition();
-        if (currentPos > document.getDocumentLength()) { return; }
-
-        int index = findVisualLineIndexForPosition(currentPos);
-        if (index == -1)  return;
-
-        VisualLine cur = visualLines.get(index);
-        int start = cur.startPosition();
-        int endEx = start + cur.length();
-
-        if (cur.hasNewlineChar()) {
-           cursor.setPosition(endEx - 1);
-        } else {
-            cursor.setPosition(endEx);
-            cursor.setAffinity(CursorModel.Affinity.LEFT);
-        }
-
+        var newPosition = cursorCalculator.calculateLineEndMovement(cursor, visualLines);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
         }
 
     public void moveHome() {
         if (cursor == null) return;
-        int currentPos = cursor.getPosition();
-        if (currentPos > document.getDocumentLength()) { return; }
-
-        int index = findVisualLineIndexForPosition(currentPos);
-        if (index == -1)  return;
-
-        VisualLine cur = visualLines.get(index);
-        int start = cur.startPosition();
-
-        cursor.setPosition(start);
-        cursor.setAffinity(CursorModel.Affinity.RIGHT);
+        var newPosition = cursorCalculator.calculateLineStartMovement(cursor, visualLines);
+        cursor.setPosition(newPosition.position());
+        cursor.setAffinity(newPosition.affinity());
         resetCursorBlink();
         draw();
     }

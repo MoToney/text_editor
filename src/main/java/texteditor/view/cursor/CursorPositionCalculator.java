@@ -30,6 +30,34 @@ public class CursorPositionCalculator {
         return new CursorPosition(currentPosition + 1, CursorModel.Affinity.RIGHT);
     }
 
+    public CursorPosition calculateLineStartMovement(CursorModel cursor, List<VisualLine> visualLines) {
+        int currentPosition = cursor.getPosition();
+        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
+
+        if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
+
+        VisualLine line = visualLines.get(lineIndex);
+        int startPosition = line.startPosition();
+
+        return new CursorPosition(startPosition, CursorModel.Affinity.RIGHT);
+    }
+
+    public CursorPosition calculateLineEndMovement(CursorModel cursor, List<VisualLine> visualLines) {
+        int currentPosition = cursor.getPosition();
+        int lineIndex = findVisualLineIndex(currentPosition, cursor.getAffinity(), visualLines);
+
+        if (lineIndex < 0) return new CursorPosition(currentPosition, cursor.getAffinity());
+
+        VisualLine line = visualLines.get(lineIndex);
+        int endPosition = line.endPosition();
+
+        if (line.hasNewlineChar()) {
+            return new CursorPosition(endPosition - 1, CursorModel.Affinity.RIGHT);
+        } else {
+            return new CursorPosition(endPosition, CursorModel.Affinity.LEFT);
+        }
+    }
+
     public int findVisualLineIndex(int position, CursorModel.Affinity affinity, List<VisualLine> visualLines) {
         if (visualLines.isEmpty()) return -1;
 
