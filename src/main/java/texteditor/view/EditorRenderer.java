@@ -20,7 +20,6 @@ public class EditorRenderer {
 
     public void renderDocument(GraphicsContext gc, List<VisualLine> visualLines) {
         gc.setFont(measurer.getFont());
-
         for (int l = 0; l < visualLines.size(); l++) {
             String lineToDraw = visualLines.get(l).text();
             double y = paddingTop + measurer.getBaselineOffset() + (l * measurer.getLineHeight());
@@ -29,13 +28,9 @@ public class EditorRenderer {
     }
 
     public void renderCursor(GraphicsContext gc, double cursorX, double cursorY, boolean visible) {
-        if (!visible) {
-            return;
-        }
-        // Calculate the top of the line by subtracting the baseline offset from the cursor's Y.
-        double lineTop = cursorY - measurer.getBaselineOffset();
+        if (!visible) {return;}
 
-        // Calculate the bottom of the line.
+        double lineTop = cursorY - measurer.getBaselineOffset();
         double lineBottom = lineTop + measurer.getLineHeight();
 
         gc.setStroke(Color.BLACK);

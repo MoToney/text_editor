@@ -4,10 +4,8 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
-import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.cursor.CursorManager;
 import texteditor.view.layout.TextLayoutEngine;
@@ -21,7 +19,8 @@ import java.util.List;
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
     private final TextLayoutEngine layoutEngine;
-    private final CursorManager cursorCalculator;
+    private final CursorManager cursorManager;
+    private final EditorRenderer renderer;
 
     private  List<VisualLine> visualLines = new ArrayList<>();
 
@@ -36,12 +35,13 @@ public class EditorCanvas extends Canvas {
     private final Timeline cursorBlinkTimeline;
 
     public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorManager cursorManager,
-                        double paddingHorizontal, double paddingTop) {
+                        EditorRenderer renderer, double paddingHorizontal, double paddingTop) {
         super(250, 300);
 
         this.document = document;
         this.layoutEngine = layoutEngine;
-        this.cursorCalculator = cursorManager;
+        this.cursorManager = cursorManager;
+        this.renderer = renderer;
 
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
@@ -78,79 +78,53 @@ public class EditorCanvas extends Canvas {
     public void draw() {
         GraphicsContext gc = this.getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
-        gc.setFont(font);
 
-        drawDocument(gc);
-        updateCursorLocation();
-        drawCursor(gc);
-    }
-
-    public void drawDocument(GraphicsContext gc) {
         double availableWidth = getWidth() - paddingHorizontal - paddingHorizontal;
         var layoutResult = layoutEngine.calculateLayout(document, availableWidth);
         visualLines = layoutResult.getVisualLines();
 
-        // Draw visual lines
-        for (int l = 0; l < visualLines.size(); l++) {
-            String lineToDraw = visualLines.get(l).text();
-            double y = paddingTop + measurer.getBaselineOffset() + (l * measurer.getLineHeight());
-            gc.fillText(lineToDraw, paddingHorizontal, y);
-        }
+        renderer.renderDocument(gc, visualLines);
+        cursorManager.updateCursorLocation(visualLines);
+        renderer.renderCursor(gc, cursorManager.getCursorX(), cursorManager.getCursorY(), isCursorVisible);
     }
 
+
     public void moveLeft() {
-        cursorCalculator.moveLeft();
+        cursorManager.moveLeft();
         resetCursorBlink();
         draw();
     }
 
     public void moveRight() {
-        cursorCalculator.moveRight();
+        cursorManager.moveRight();
         resetCursorBlink();
         draw();
     }
 
     public void moveEnd() {
-        cursorCalculator.moveToLineEnd(visualLines);
+        cursorManager.moveToLineEnd(visualLines);
         resetCursorBlink();
         draw();
         }
 
     public void moveHome() {
-        cursorCalculator.moveToLineStart(visualLines);
+        cursorManager.moveToLineStart(visualLines);
         resetCursorBlink();
         draw();
     }
 
     public void moveDown() {
-        cursorCalculator.moveVertical(visualLines, 1);
+        cursorManager.moveVertical(visualLines, 1);
         resetCursorBlink();
         draw();
     }
 
     public void moveUp() {
-        cursorCalculator.moveVertical(visualLines, -1);
+        cursorManager.moveVertical(visualLines, -1);
         resetCursorBlink();
         draw();
     }
 
-    public void updateCursorLocation() {
-        cursorCalculator.updateCursorLocation(visualLines);
-    }
 
-    public void drawCursor(GraphicsContext gc) {
-        if (!isCursorVisible) {
-            return;
-        }
-        // Calculate the top of the line by subtracting the baseline offset from the cursor's Y.
-        double lineTop = cursorCalculator.getCursorY() - measurer.getBaselineOffset();
-
-        // Calculate the bottom of the line.
-        double lineBottom = lineTop + measurer.getLineHeight();
-
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(1.5);
-        gc.strokeLine(cursorCalculator.getCursorX(), lineTop, cursorCalculator.getCursorX(), lineBottom);
-    }
 }
 

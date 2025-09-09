@@ -9,6 +9,7 @@ import texteditor.controller.EditorController;
 import texteditor.model.CursorModel;
 import texteditor.model.PieceTable;
 import texteditor.view.EditorCanvas;
+import texteditor.view.EditorRenderer;
 import texteditor.view.cursor.CursorManager;
 import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.text.JavaFXTextMeasurer;
@@ -26,9 +27,10 @@ public class Main extends Application {
             TextMeasurer textMeasurer = new JavaFXTextMeasurer(new Font("Consolas", 26));
             TextLayoutEngine layoutEngine = new TextLayoutEngine(textMeasurer);
             CursorManager cursorCalculator = new CursorManager(document, textMeasurer, 10.0, 25.0);
+            EditorRenderer renderer = new EditorRenderer(textMeasurer, 10.0, 25.0);
 
 
-            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, cursorCalculator, 10.0, 25.0);
+            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, cursorCalculator, renderer, 10.0, 25.0);
             CursorModel cursor = new CursorModel(document, canvas);
 
             cursorCalculator.setCursor(cursor);
