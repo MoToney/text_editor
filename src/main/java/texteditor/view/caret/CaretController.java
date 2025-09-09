@@ -82,7 +82,7 @@ public class CaretController {
      * @param direction The line to move to, either the previous line (up) which is -1 or the next line (down) which is 1
      * @return The new cursorPosition which is the numerical position and the cursor affinity
      */
-    public void moveVertical(List<VisualLine> visualLines, int direction) {
+    public void moveUpOrDown(List<VisualLine> visualLines, int direction) {
         int currentPosition = cursor.getPosition();
         if (currentPosition > document.getDocumentLength()) {return;}
 
@@ -110,6 +110,29 @@ public class CaretController {
         }
         cursor.setPosition(targetPosition);
     }
+
+    public void moveToClickPosition(double clickX, double clickY, List<VisualLine> visualLines) {
+        int lineIndex = (int)((clickY - paddingTop) / measurer.getLineHeight());
+        lineIndex = Math.max(0, Math.min(lineIndex, visualLines.size() - 1));
+        VisualLine line = visualLines.get(lineIndex);
+
+        // Convert X to column
+        int column = 0;
+        double width = paddingHorizontal;
+        for (; column < line.length(); column++) {
+            double charWidth = measurer.measureWidth(line.text().substring(column, column + 1));
+            width += charWidth;
+            if (width >= clickX) break;
+        }
+
+        // Set caret
+        int newPos = line.startPosition() + column;
+        cursor.setPosition(newPos);
+        cursor.setAffinity(Caret.Affinity.RIGHT);
+
+        updateCursorLocation(visualLines);
+    }
+
 
     /*private CursorPosition calculateTargetPosition( VisualLine targetLine, int desiredColumn) {
         int maxColumn = targetLine.length();

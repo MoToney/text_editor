@@ -36,6 +36,7 @@ public class JavaFXTextMeasurer implements TextMeasurer {
         return baselineOffset;
     }
 
+    @Override
     public Font getFont() {
         return font;
     }

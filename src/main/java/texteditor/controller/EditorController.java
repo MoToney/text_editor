@@ -39,10 +39,10 @@ public class EditorController {
                 caretController.moveRight();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.UP) {
-                caretController.moveVertical(canvas.recalculateLayout(), -1);
+                caretController.moveUpOrDown(canvas.recalculateLayout(), -1);
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.DOWN) {
-                caretController.moveVertical(canvas.recalculateLayout(), 1);
+                caretController.moveUpOrDown(canvas.recalculateLayout(), 1);
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.END) {
                 caretController.moveToLineEnd(canvas.recalculateLayout());

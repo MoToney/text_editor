@@ -24,10 +24,10 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
             PieceTable document = new PieceTable(INITIAL_TEXT);
-            Caret cursor = new Caret(document);
+            Caret caret = new Caret(document);
             TextMeasurer textMeasurer = new JavaFXTextMeasurer(new Font("Consolas", 26));
             LayoutEngine layoutEngine = new LayoutEngine(textMeasurer);
-            CaretController caretController = new CaretController(document, textMeasurer, cursor, 10.0, 25.0);
+            CaretController caretController = new CaretController(document, textMeasurer, caret, 10.0, 25.0);
             CanvasRenderer renderer = new CanvasRenderer(textMeasurer, 10.0, 25.0);
 
             EditorCanvas canvas = new EditorCanvas(document, layoutEngine, caretController, renderer, 10.0, 25.0);
@@ -37,10 +37,11 @@ public class Main extends Application {
             Scene scene = new Scene(root, 300, 300);
 
             // hand off to controller
-            new EditorController(scene, document, cursor, caretController, canvas);
+            new EditorController(scene, document, caret, caretController, canvas);
 
             stage.setTitle("Minimal Text Editor - M0");
             stage.setScene(scene);
             stage.show();
     }
+
 }

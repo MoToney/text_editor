@@ -42,6 +42,7 @@ public class EditorCanvas extends Canvas {
 
         this.cursorBlinkTimeline = createCursorBlinkTimeline();
         setupFocusHandling();
+        setupMouseHandling();
 
         this.visualLines = recalculateLayout();
         draw();
@@ -62,42 +63,6 @@ public class EditorCanvas extends Canvas {
         double availableWidth = getWidth() - (paddingHorizontal * 2);
         var layoutResult = layoutEngine.calculateLayout(document, availableWidth);
         return layoutResult.getVisualLines();
-    }
-
-    public void moveLeft() {
-        caretController.moveLeft();
-        resetCursorBlink();
-        draw();
-    }
-
-    public void moveRight() {
-        caretController.moveRight();
-        resetCursorBlink();
-        draw();
-    }
-
-    public void moveEnd() {
-        caretController.moveToLineEnd(visualLines);
-        resetCursorBlink();
-        draw();
-        }
-
-    public void moveHome() {
-        caretController.moveToLineStart(visualLines);
-        resetCursorBlink();
-        draw();
-    }
-
-    public void moveDown() {
-        caretController.moveVertical(visualLines, 1);
-        resetCursorBlink();
-        draw();
-    }
-
-    public void moveUp() {
-        caretController.moveVertical(visualLines, -1);
-        resetCursorBlink();
-        draw();
     }
 
     private Timeline createCursorBlinkTimeline() {
@@ -129,5 +94,17 @@ public class EditorCanvas extends Canvas {
             }
         });
     }
+
+    private void setupMouseHandling() {
+        this.setOnMouseClicked(event -> {
+            double clickX = event.getX();
+            double clickY = event.getY();
+
+            caretController.moveToClickPosition(clickX, clickY, visualLines);
+            resetCursorBlink();
+            draw();
+        });
+    }
+
 }
 

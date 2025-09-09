@@ -14,6 +14,12 @@ public class VisualLine {
         this.hasNewlineChar = hasNewlineChar;
     }
 
+    public VisualLine() {
+        this.text = "";
+        this.startPosition = 0;
+        this.hasNewlineChar = false;
+    }
+
     public String text() {return text;}
 
     public int startPosition() {return startPosition;}
