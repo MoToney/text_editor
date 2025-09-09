@@ -1,22 +1,23 @@
 package texteditor.model;
 
-public class CursorModel {
+public class Caret {
     public enum Affinity {LEFT, RIGHT}
 
     private int position;
     private final PieceTable document;
     private Affinity affinity;
 
-    public CursorModel(PieceTable document) {
+    public Caret(PieceTable document) {
         this.document = document;
         this.position = 0;
-        this.affinity = affinity.RIGHT;
+        this.affinity = Affinity.RIGHT;
     }
 
     public int getPosition() {return position;}
 
     public void setPosition(int position) {
-        if (position >= 0 && position <= document.getDocumentLength()) {this.position = position;}
+        int max = document.getDocumentLength();
+        this.position = Math.max(0, Math.min(position, max));
     }
 
     public Affinity getAffinity() {return affinity;}

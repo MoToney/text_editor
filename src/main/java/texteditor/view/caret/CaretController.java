@@ -1,23 +1,23 @@
-package texteditor.view.cursor;
+package texteditor.view.caret;
 
-import texteditor.model.CursorModel;
+import texteditor.model.Caret;
 import texteditor.model.PieceTable;
 import texteditor.view.layout.VisualLine;
 import texteditor.view.text.TextMeasurer;
 
 import java.util.List;
 
-public class CursorManager {
+public class CaretController {
     private final PieceTable document;
     private final TextMeasurer measurer;
-    private final CursorModel cursor;
+    private final Caret cursor;
     private double cursorX = 0;
     private double cursorY = 0;
 
     private final double paddingHorizontal;
     private final double paddingTop;
 
-    public CursorManager(PieceTable document, TextMeasurer measurer, CursorModel cursor, double paddingHorizontal, double paddingTop) {
+    public CaretController(PieceTable document, TextMeasurer measurer, Caret cursor, double paddingHorizontal, double paddingTop) {
         this.document = document;
         this.measurer = measurer;
         this.cursor = cursor;
@@ -30,7 +30,7 @@ public class CursorManager {
         int currentPosition = cursor.getPosition();
         if (currentPosition > 0) {
             cursor.setPosition(currentPosition - 1);
-            cursor.setAffinity(CursorModel.Affinity.RIGHT);
+            cursor.setAffinity(Caret.Affinity.RIGHT);
         }
     }
 
@@ -39,7 +39,7 @@ public class CursorManager {
         int currentPosition = cursor.getPosition();
         if (currentPosition < document.getDocumentLength()) {
             cursor.setPosition(currentPosition + 1);
-            cursor.setAffinity(CursorModel.Affinity.RIGHT);
+            cursor.setAffinity(Caret.Affinity.RIGHT);
         }
     }
 
@@ -54,7 +54,7 @@ public class CursorManager {
 
         VisualLine line = visualLines.get(lineIndex);
         cursor.setPosition(line.startPosition());
-        cursor.setAffinity(CursorModel.Affinity.RIGHT);
+        cursor.setAffinity(Caret.Affinity.RIGHT);
     }
 
     public void moveToLineEnd(List<VisualLine> visualLines) {
@@ -72,7 +72,7 @@ public class CursorManager {
             cursor.setPosition(line.endPosition() -1);
         } else {
             cursor.setPosition(line.endPosition());
-            cursor.setAffinity(CursorModel.Affinity.LEFT);
+            cursor.setAffinity(Caret.Affinity.LEFT);
         }
     }
 
@@ -103,7 +103,7 @@ public class CursorManager {
                 targetPosition = targetLine.startPosition() + targetLine.length() -1;
             } else {
                 targetPosition = targetLine.startPosition() + targetLine.length();
-                cursor.setAffinity(CursorModel.Affinity.LEFT);
+                cursor.setAffinity(Caret.Affinity.LEFT);
             }
         } else {
             targetPosition = targetLine.startPosition() + currentColumn;
@@ -157,12 +157,12 @@ public class CursorManager {
 
         if (position == line.startPosition()) {
             if (lineIndex == 0) return 0;
-            return (cursor.getAffinity() == CursorModel.Affinity.RIGHT) ? lineIndex - 1 : lineIndex;
+            return (cursor.getAffinity() == Caret.Affinity.RIGHT) ? lineIndex - 1 : lineIndex;
         }
 
         if (position == line.endPosition()) {
             if (lineIndex == visualLines.size() - 1) return lineIndex;
-            return (cursor.getAffinity() == CursorModel.Affinity.LEFT) ? lineIndex : lineIndex + 1;
+            return (cursor.getAffinity() == Caret.Affinity.LEFT) ? lineIndex : lineIndex + 1;
         }
         return lineIndex;
     }

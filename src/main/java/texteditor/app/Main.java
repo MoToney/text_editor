@@ -6,12 +6,12 @@ import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import texteditor.controller.EditorController;
-import texteditor.model.CursorModel;
+import texteditor.model.Caret;
 import texteditor.model.PieceTable;
 import texteditor.view.EditorCanvas;
-import texteditor.view.EditorRenderer;
-import texteditor.view.cursor.CursorManager;
-import texteditor.view.layout.TextLayoutEngine;
+import texteditor.view.CanvasRenderer;
+import texteditor.view.caret.CaretController;
+import texteditor.view.layout.LayoutEngine;
 import texteditor.view.text.JavaFXTextMeasurer;
 import texteditor.view.text.TextMeasurer;
 
@@ -24,20 +24,20 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
             PieceTable document = new PieceTable(INITIAL_TEXT);
-            CursorModel cursor = new CursorModel(document);
+            Caret cursor = new Caret(document);
             TextMeasurer textMeasurer = new JavaFXTextMeasurer(new Font("Consolas", 26));
-            TextLayoutEngine layoutEngine = new TextLayoutEngine(textMeasurer);
-            CursorManager cursorCalculator = new CursorManager(document, textMeasurer, cursor, 10.0, 25.0);
-            EditorRenderer renderer = new EditorRenderer(textMeasurer, 10.0, 25.0);
+            LayoutEngine layoutEngine = new LayoutEngine(textMeasurer);
+            CaretController caretController = new CaretController(document, textMeasurer, cursor, 10.0, 25.0);
+            CanvasRenderer renderer = new CanvasRenderer(textMeasurer, 10.0, 25.0);
 
-            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, cursorCalculator, renderer, 10.0, 25.0);
+            EditorCanvas canvas = new EditorCanvas(document, layoutEngine, caretController, renderer, 10.0, 25.0);
             canvas.draw();
 
             StackPane root = new StackPane(canvas);
             Scene scene = new Scene(root, 300, 300);
 
             // hand off to controller
-            new EditorController(scene, document, cursor, canvas);
+            new EditorController(scene, document, cursor, caretController, canvas);
 
             stage.setTitle("Minimal Text Editor - M0");
             stage.setScene(scene);

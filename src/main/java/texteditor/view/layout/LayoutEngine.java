@@ -7,11 +7,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class TextLayoutEngine {
+public class LayoutEngine {
 
     private final TextMeasurer textMeasurer;
 
-    public TextLayoutEngine(TextMeasurer textMeasurer) {
+    public LayoutEngine(TextMeasurer textMeasurer) {
         this.textMeasurer = textMeasurer;
     }
 
@@ -35,7 +35,7 @@ public class TextLayoutEngine {
             } else {
                 createWrappedVisualLines(visualLines, components, logicalLineStartPosition, availableWidth);
             }
-            logicalLineStartPosition = document.getLineLength(i);
+            logicalLineStartPosition += document.getLineLength(i);
         }
         return new LayoutResult(visualLines);
     }
@@ -70,6 +70,8 @@ public class TextLayoutEngine {
     }
 
     public int findOptimalBreakpoint(String text, double availableWidth) {
+        if (text.isEmpty()) return 0;
+
         int left = 0, right = text.length();
         while (left < right) {
             int mid = left + (right - left + 1) / 2; // +1 gets the last passing index and prevents infinite loop (upper bound)
@@ -81,7 +83,7 @@ public class TextLayoutEngine {
                 right = mid - 1;
             }
         }
-        return left;
+        return Math.max(1, Math.min(left, text.length()));
     }
 
     public LineComponents parseLineComponents(String logicalLine) {

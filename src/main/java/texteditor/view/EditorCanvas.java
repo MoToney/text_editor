@@ -6,18 +6,19 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.util.Duration;
 import texteditor.model.PieceTable;
-import texteditor.view.cursor.CursorManager;
-import texteditor.view.layout.TextLayoutEngine;
+import texteditor.view.caret.CaretController;
+import texteditor.view.layout.LayoutEngine;
 import texteditor.view.layout.VisualLine;
+
 import java.util.List;
 
 public class EditorCanvas extends Canvas {
     private final PieceTable document;
-    private final TextLayoutEngine layoutEngine;
-    private final CursorManager cursorManager;
-    private final EditorRenderer renderer;
+    private final LayoutEngine layoutEngine;
+    private final CaretController caretController;
+    private final CanvasRenderer renderer;
 
-    private  List<VisualLine> visualLines;
+    private List<VisualLine> visualLines;
 
     private final double paddingHorizontal;
     private final double paddingTop;
@@ -26,67 +27,75 @@ public class EditorCanvas extends Canvas {
     private boolean isCursorVisible = true;
     private final Timeline cursorBlinkTimeline;
 
-    public EditorCanvas(PieceTable document, TextLayoutEngine layoutEngine, CursorManager cursorManager,
-                        EditorRenderer renderer, double paddingHorizontal, double paddingTop) {
+    public EditorCanvas(PieceTable document, LayoutEngine layoutEngine, CaretController caretController,
+                        CanvasRenderer renderer, double paddingHorizontal, double paddingTop) {
         super(250, 300);
 
         this.document = document;
         this.layoutEngine = layoutEngine;
-        this.cursorManager = cursorManager;
+        this.caretController = caretController;
         this.renderer = renderer;
 
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
 
+
         this.cursorBlinkTimeline = createCursorBlinkTimeline();
         setupFocusHandling();
+
+        this.visualLines = recalculateLayout();
+        draw();
     }
 
     public void draw() {
         GraphicsContext gc = this.getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
 
-        double availableWidth = getWidth() - paddingHorizontal - paddingHorizontal;
-        var layoutResult = layoutEngine.calculateLayout(document, availableWidth);
-        visualLines = layoutResult.getVisualLines();
+        visualLines = recalculateLayout();
 
-        renderer.renderDocument(gc, visualLines);
-        cursorManager.updateCursorLocation(visualLines);
-        renderer.renderCursor(gc, cursorManager.getCursorX(), cursorManager.getCursorY(), isCursorVisible);
+        renderer.drawDocumentLines(gc, visualLines);
+        caretController.updateCursorLocation(visualLines);
+        renderer.drawCaret(gc, caretController.getCursorX(), caretController.getCursorY(), isCursorVisible);
+    }
+
+    public List<VisualLine> recalculateLayout() {
+        double availableWidth = getWidth() - (paddingHorizontal * 2);
+        var layoutResult = layoutEngine.calculateLayout(document, availableWidth);
+        return layoutResult.getVisualLines();
     }
 
     public void moveLeft() {
-        cursorManager.moveLeft();
+        caretController.moveLeft();
         resetCursorBlink();
         draw();
     }
 
     public void moveRight() {
-        cursorManager.moveRight();
+        caretController.moveRight();
         resetCursorBlink();
         draw();
     }
 
     public void moveEnd() {
-        cursorManager.moveToLineEnd(visualLines);
+        caretController.moveToLineEnd(visualLines);
         resetCursorBlink();
         draw();
         }
 
     public void moveHome() {
-        cursorManager.moveToLineStart(visualLines);
+        caretController.moveToLineStart(visualLines);
         resetCursorBlink();
         draw();
     }
 
     public void moveDown() {
-        cursorManager.moveVertical(visualLines, 1);
+        caretController.moveVertical(visualLines, 1);
         resetCursorBlink();
         draw();
     }
 
     public void moveUp() {
-        cursorManager.moveVertical(visualLines, -1);
+        caretController.moveVertical(visualLines, -1);
         resetCursorBlink();
         draw();
     }
@@ -103,7 +112,7 @@ public class EditorCanvas extends Canvas {
         return timeline;
     }
 
-    private void resetCursorBlink() {
+    public void resetCursorBlink() {
         isCursorVisible = true;
         cursorBlinkTimeline.playFromStart();
     }
