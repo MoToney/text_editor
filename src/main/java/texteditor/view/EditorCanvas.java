@@ -4,16 +4,11 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.text.Font;
 import javafx.util.Duration;
 import texteditor.model.PieceTable;
 import texteditor.view.cursor.CursorManager;
 import texteditor.view.layout.TextLayoutEngine;
 import texteditor.view.layout.VisualLine;
-import texteditor.view.text.JavaFXTextMeasurer;
-import texteditor.view.text.TextMeasurer;
-
-import java.util.ArrayList;
 import java.util.List;
 
 public class EditorCanvas extends Canvas {
@@ -22,10 +17,7 @@ public class EditorCanvas extends Canvas {
     private final CursorManager cursorManager;
     private final EditorRenderer renderer;
 
-    private  List<VisualLine> visualLines = new ArrayList<>();
-
-    private final Font font = new Font("Consolas", 26);
-    private final TextMeasurer measurer = new JavaFXTextMeasurer(font);
+    private  List<VisualLine> visualLines;
 
     private final double paddingHorizontal;
     private final double paddingTop;
@@ -46,34 +38,9 @@ public class EditorCanvas extends Canvas {
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
 
-        this.cursorBlinkTimeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.5), event -> {
-                    isCursorVisible = !isCursorVisible;
-                    draw();
-                })
-        );
-        cursorBlinkTimeline.setCycleCount(Timeline.INDEFINITE);
-        cursorBlinkTimeline.play();
-
-        this.focusedProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue) {
-                resetCursorBlink();
-                cursorBlinkTimeline.play();
-            } else {
-                isCursorVisible = false;
-                draw();
-                cursorBlinkTimeline.pause();
-            }
-        });
-
+        this.cursorBlinkTimeline = createCursorBlinkTimeline();
+        setupFocusHandling();
     }
-
-
-    public void resetCursorBlink() {
-        isCursorVisible = true;
-        cursorBlinkTimeline.playFromStart();
-    }
-
 
     public void draw() {
         GraphicsContext gc = this.getGraphicsContext2D();
@@ -87,7 +54,6 @@ public class EditorCanvas extends Canvas {
         cursorManager.updateCursorLocation(visualLines);
         renderer.renderCursor(gc, cursorManager.getCursorX(), cursorManager.getCursorY(), isCursorVisible);
     }
-
 
     public void moveLeft() {
         cursorManager.moveLeft();
@@ -125,6 +91,34 @@ public class EditorCanvas extends Canvas {
         draw();
     }
 
+    private Timeline createCursorBlinkTimeline() {
+        var timeline = new Timeline(
+                new KeyFrame(Duration.seconds(0.5), event -> {
+                    isCursorVisible = !isCursorVisible;
+                    draw();
+                })
+        );
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+        return timeline;
+    }
 
+    private void resetCursorBlink() {
+        isCursorVisible = true;
+        cursorBlinkTimeline.playFromStart();
+    }
+
+    private void setupFocusHandling() {
+        this.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                resetCursorBlink();
+                cursorBlinkTimeline.play();
+            } else {
+                isCursorVisible = false;
+                draw();
+                cursorBlinkTimeline.pause();
+            }
+        });
+    }
 }
 

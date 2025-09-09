@@ -23,8 +23,6 @@ public class EditorController {
 
     private void setupKeyHandlers() {
         scene.setOnKeyPressed(event -> {
-            boolean modelChanged = false;
-
             if (event.getCode() == KeyCode.LEFT) {
                 canvas.moveLeft();
             } else if (event.getCode() == KeyCode.RIGHT) {
@@ -46,10 +44,6 @@ public class EditorController {
             } else if (event.getCode() == KeyCode.BACK_SPACE) {
                 document.removeText(cursor.getPosition() - 1, 1);
                 canvas.moveLeft();
-            }
-            if (modelChanged) {
-                canvas.resetCursorBlink();
-                canvas.draw();
             }
         });
     }

@@ -29,13 +29,6 @@ public class VisualLine {
         return String.format("VisualLine{text='%s', start=%d, hasNewline=%b}",
                 text, startPosition, hasNewlineChar);
     }
-
-    public static void main(String[] args) {
-        VisualLine vl = new VisualLine("Hello World", 2, true);
-        System.out.println(vl);
-
-
-    }
 }
 
 

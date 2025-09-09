@@ -10,22 +10,19 @@ import java.util.List;
 public class CursorManager {
     private final PieceTable document;
     private final TextMeasurer measurer;
-    private CursorModel cursor;
+    private final CursorModel cursor;
     private double cursorX = 0;
     private double cursorY = 0;
 
     private final double paddingHorizontal;
     private final double paddingTop;
 
-    public CursorManager(PieceTable document, TextMeasurer measurer, double paddingHorizontal, double paddingTop) {
+    public CursorManager(PieceTable document, TextMeasurer measurer, CursorModel cursor, double paddingHorizontal, double paddingTop) {
         this.document = document;
         this.measurer = measurer;
+        this.cursor = cursor;
         this.paddingHorizontal = paddingHorizontal;
         this.paddingTop = paddingTop;
-    }
-
-    public void setCursor(CursorModel cursor) {
-        this.cursor = cursor;
     }
 
     public void moveLeft() {
