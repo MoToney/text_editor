@@ -125,10 +125,14 @@ public class CaretController {
             if (width >= clickX) break;
         }
 
-        // Set caret
-        int newPos = line.startPosition() + column;
-        cursor.setPosition(newPos);
-        cursor.setAffinity(Caret.Affinity.RIGHT);
+        if (width < clickX) {
+            int newPos = line.startPosition() + line.length();
+            moveToLineEnd(visualLines);
+        } else {
+            int newPos = line.startPosition() + column;
+            cursor.setPosition(newPos);
+            cursor.setAffinity(Caret.Affinity.RIGHT);
+        }
 
         updateCursorLocation(visualLines);
     }
