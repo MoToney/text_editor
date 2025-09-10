@@ -221,72 +221,65 @@ public class PieceTable {
         rebuildLineCache();
     }
 
-    public void remove(int index, int deleteLength) {
-        TextLocation textLocation = findLocationAt(index);
+    public void remove(int position, int length) {
+        if (length <= 0 || position < 0 || position + length > this.totalLength) return;
 
-        if (textLocation != null) {
-            Piece originalPiece = textLocation.piece;
-            int localIndex = textLocation.offsetInPiece;
-            int i = textLocation.pieceIndex;
+        TextLocation startLocation = findLocationAt(position);
+        TextLocation endLocation = findLocationAt(position + length);
 
-            int restInFirst = originalPiece.length - localIndex; // chars from offsetInPiece to end
-            Piece beforePiece = (localIndex > 0)
-                    ? new Piece(originalPiece.source, originalPiece.start, localIndex)
+        if (startLocation.pieceIndex() == endLocation.pieceIndex()) {
+            Piece pieceToModify = startLocation.piece();
+            int pieceIndex = startLocation.pieceIndex();
+
+            int startOffset = startLocation.offsetInPiece();
+            int endOffset = endLocation.offsetInPiece();
+
+            pieces.remove(pieceIndex);
+
+            Piece leftPart = (startOffset > 0)
+                    ? new Piece(pieceToModify.source, pieceToModify.start, startOffset)
                     : null;
 
-            // Case 1: delete fits entirely inside the first piece
-            if (deleteLength < restInFirst) {
-                Piece afterPiece = new Piece(
-                        originalPiece.source,
-                        originalPiece.start + localIndex + deleteLength,
-                        restInFirst - deleteLength
-                );
+            Piece rightPart = (endOffset < pieceToModify.length)
+                    ? new Piece(pieceToModify.source, pieceToModify.start + endOffset,
+                    pieceToModify.length - endOffset)
+                    : null;
 
-                pieces.remove(i);                       // replace original
-                if (beforePiece != null) pieces.add(i++, beforePiece);
-                pieces.add(i, afterPiece);
-                this.totalLength -= deleteLength;
-                rebuildLineCache();
-                return;
-            }
-
-            // Case 2: delete exactly to the end of the first piece
-            if (deleteLength == restInFirst) {
-                pieces.remove(i);
-                if (beforePiece != null) pieces.add(i, beforePiece);
-                this.totalLength -= deleteLength;
-                rebuildLineCache();
-                return;
-            }
-
-            // Case 3: delete spans multiple pieces
-            int remaining = deleteLength - restInFirst;
-            pieces.remove(i);
-            if (beforePiece != null) pieces.add(i++, beforePiece);
-
-            while (remaining > 0 && i < pieces.size()) {
-                Piece currentPiece = pieces.get(i);
-                if (remaining > currentPiece.length) {
-                    pieces.remove(i);
-                    remaining -= currentPiece.length;
-                }
-                else if (remaining == currentPiece.length) {
-                    pieces.remove(i);
-                    this.totalLength -= deleteLength;
-                    rebuildLineCache();
-                    return;
-                }
-                else {
-                    Piece notDeletedPiecePortion = new Piece(currentPiece.source, currentPiece.start + remaining, currentPiece.length - remaining);
-                    pieces.remove(i);
-                    pieces.add(i, notDeletedPiecePortion);
-                    this.totalLength -= deleteLength;
-                    rebuildLineCache();
-                    return;
-                }
-            }
-
+            int currentIndex = pieceIndex;
+            if (leftPart != null) pieces.add(currentIndex++, leftPart);
+            if (rightPart != null) pieces.add(currentIndex, rightPart);
         }
+        else {
+            Piece firstPiece = startLocation.piece();
+            int firstPieceIndex = startLocation.pieceIndex();
+            int firstPieceStartOffset = startLocation.offsetInPiece();
+
+            Piece lastPiece = endLocation.piece();
+            int lastPieceIndex = endLocation.pieceIndex();
+            int lastPieceEndOffset = endLocation.offsetInPiece();
+
+            // remove all middle pieces that are fully consumed when deleting
+            for (int i = lastPieceIndex - 1; i > firstPieceIndex; i--) {
+                pieces.remove(i);
+            }
+
+            if (lastPieceEndOffset < lastPiece.length) {
+                Piece rightPart = new Piece(lastPiece.source, lastPiece.start + lastPieceEndOffset,
+                        lastPiece.length - lastPieceEndOffset);
+                pieces.set(firstPieceIndex + 1, rightPart);
+            } else {
+                pieces.remove(firstPieceIndex + 1);
+            }
+
+            if (firstPieceStartOffset > 0) {
+                Piece leftPart = new Piece(firstPiece.source, firstPiece.start, firstPieceStartOffset);
+                pieces.set(firstPieceIndex, leftPart);
+            } else {
+                pieces.remove(firstPieceIndex);
+            }
+        }
+        totalLength -= length;
+        rebuildLineCache();
     }
 
     public static void main(String[] args) {
