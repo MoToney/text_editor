@@ -9,7 +9,7 @@ public class PieceTableTest {
     @Test
     public void constructorAndBasicGetters() {
         PieceTable pt = new PieceTable("Hello");
-        assertEquals("Hello", pt.getText());
+        assertEquals("Hello", pt.getAllDocumentText());
         assertEquals(5, pt.getDocumentLength());
         assertEquals(1, pt.getLineCount());
         assertEquals("Hello", pt.getLine(0));
@@ -21,7 +21,7 @@ public class PieceTableTest {
     public void insertAtBeginning() {
         PieceTable pt = new PieceTable("world");
         pt.insertText(0, "Hello ");
-        assertEquals("Hello world", pt.getText());
+        assertEquals("Hello world", pt.getAllDocumentText());
         assertEquals(11, pt.getDocumentLength());
     }
 
@@ -29,7 +29,7 @@ public class PieceTableTest {
     public void insertInMiddleSplitsPiece() {
         PieceTable pt = new PieceTable("abcde");
         pt.insertText(2, "X");
-        assertEquals("abXcde", pt.getText());
+        assertEquals("abXcde", pt.getAllDocumentText());
         assertEquals(6, pt.getDocumentLength());
     }
 
@@ -37,7 +37,7 @@ public class PieceTableTest {
     public void insertAtEndAppends() {
         PieceTable pt = new PieceTable("abc");
         pt.insertText(3, "def");
-        assertEquals("abcdef", pt.getText());
+        assertEquals("abcdef", pt.getAllDocumentText());
         assertEquals(6, pt.getDocumentLength());
     }
 
@@ -45,7 +45,7 @@ public class PieceTableTest {
     public void insertIntoEmptyDocument() {
         PieceTable pt = new PieceTable("");
         pt.insertText(0, "abc");
-        assertEquals("abc", pt.getText());
+        assertEquals("abc", pt.getAllDocumentText());
         assertEquals(3, pt.getDocumentLength());
         assertEquals(1, pt.getLineCount());
     }
@@ -54,7 +54,7 @@ public class PieceTableTest {
     public void removeWithinSinglePiece() {
         PieceTable pt = new PieceTable("abcdef");
         pt.removeText(2, 2); // remove "cd"
-        assertEquals("abef", pt.getText());
+        assertEquals("abef", pt.getAllDocumentText());
         assertEquals(4, pt.getDocumentLength());
     }
 
@@ -66,7 +66,7 @@ public class PieceTableTest {
         // Remove 10 chars starting at index 3 (spans original + inserted content)
         pt.removeText(3, 10);
         // Expected result calculated manually: "Hel" + remaining "ld" -> "Helld"
-        assertEquals("Helld", pt.getText());
+        assertEquals("Helld", pt.getAllDocumentText());
         assertEquals(5, pt.getDocumentLength());
     }
 
@@ -75,7 +75,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("hello");
         // attempt to remove starting beyond document length -> should be no-op
         pt.removeText(10, 2);
-        assertEquals("hello", pt.getText());
+        assertEquals("hello", pt.getAllDocumentText());
         assertEquals(5, pt.getDocumentLength());
     }
 
@@ -103,4 +103,31 @@ public class PieceTableTest {
         assertEquals("bc\n", pt.getLine(1));
         assertEquals("def", pt.getLine(2));
     }
+
+    @Test
+    public void getAllDocumentTextMatchesGetTextInitially() {
+        PieceTable pt = new PieceTable("Hello World");
+        assertEquals("Hello World", pt.getAllDocumentText());
+    }
+
+    @Test
+    public void getAllDocumentTextMatchesAfterInsert() {
+        PieceTable pt = new PieceTable("Hello");
+        pt.insertText(5, " World");
+        assertEquals("Hello World", pt.getAllDocumentText());
+    }
+
+    @Test
+    public void getAllDocumentTextMatchesAfterRemove() {
+        PieceTable pt = new PieceTable("abcdef");
+        pt.removeText(2, 3); // remove cde
+        assertEquals("abf", pt.getAllDocumentText());
+    }
+
+    @Test
+    public void getAllDocumentTextHandlesEmptyDocument() {
+        PieceTable pt = new PieceTable("");
+        assertEquals("", pt.getAllDocumentText());
+    }
+
 }

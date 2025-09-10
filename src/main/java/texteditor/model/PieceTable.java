@@ -149,7 +149,7 @@ public class PieceTable {
     }
 
 
-    public String getText() {
+    public String getAllDocumentText() {
         StringBuilder result = new StringBuilder();
         for (Piece piece : pieces) {
             if (piece.isOriginal) {
@@ -292,23 +292,23 @@ public class PieceTable {
 
     public static void main(String[] args) {
         PieceTable testTable = new PieceTable("Does this work ");
-        String text = testTable.getText();
+        String text = testTable.getAllDocumentText();
         System.out.println(text);
 
         testTable.insertText(10, "really ");
-        String newtext = testTable.getText();
+        String newtext = testTable.getAllDocumentText();
         System.out.println(newtext);
 
         testTable.insertText(21, " wow ");
-        String newtext2 = testTable.getText();
+        String newtext2 = testTable.getAllDocumentText();
         System.out.println(newtext2);
 
         testTable.insertText(10, "thing \n");
-        String newtext3 = testTable.getText();
+        String newtext3 = testTable.getAllDocumentText();
         System.out.println(newtext3);
 
         testTable.removeText(10, 5);
-        System.out.println(testTable.getText());
+        System.out.println(testTable.getAllDocumentText());
 
         System.out.println(testTable.getDocumentLength());
 
