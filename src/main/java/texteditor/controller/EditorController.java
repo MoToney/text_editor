@@ -51,15 +51,15 @@ public class EditorController {
                 caretController.moveToLineStart(canvas.recalculateLayout());
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.ENTER) {
-                document.insertText(cursor.getPosition(), "\n");
+                document.insert(cursor.getPosition(), "\n");
                 caretController.moveRight();
                 modelChanged = true;
             } else if (event.getCode().isLetterKey() || event.getCode().isDigitKey() || event.getText().length() == 1) {
-                document.insertText(cursor.getPosition(), event.getText());
+                document.insert(cursor.getPosition(), event.getText());
                 caretController.moveRight();
                 modelChanged = true;
             } else if (event.getCode() == KeyCode.BACK_SPACE) {
-                document.removeText(cursor.getPosition() - 1, 1);
+                document.remove(cursor.getPosition() - 1, 1);
                 caretController.moveLeft();
                 modelChanged = true;
             }

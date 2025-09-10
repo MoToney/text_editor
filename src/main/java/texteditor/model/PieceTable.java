@@ -163,76 +163,73 @@ public class PieceTable {
         return this.totalLength;
     }
 
-    public record PieceInfo(Piece piece, int localIndex, int pieceListIndex) {}
+    public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
 
-    public PieceInfo getPieceByIndex(int index) {
+    public TextLocation findLocationAt(int position) {
         int currentLength = 0;
         for (int i = 0; i < pieces.size(); i++) {
             currentLength += pieces.get(i).length;
-            if (currentLength >= index) {
-                int localIndex = pieces.get(i).length - (currentLength - index);
-                return new PieceInfo(pieces.get(i), localIndex, i);
+            if (currentLength >= position) {
+                int localIndex = pieces.get(i).length - (currentLength - position);
+                return new TextLocation(pieces.get(i), localIndex, i);
             }
         }
         return null;
     }
 
-    public String getTextByIndex(int index, int length) {
+    public String getTextSpan(int position, int length) {
         return "";
     }
 
-    public void insertText(int index, String text) {
-        // 1. Insert new text into the add buffer and create a piece
-        Piece textPiece = new Piece(Piece.BufferType.ADD, addBuffer.length(), text.length());
-        this.addBuffer.append(text);
+    public void insert(int position, String text) {
+        if (text == null || text.isEmpty()) return;
 
-        PieceInfo pieceInfo = getPieceByIndex(index);
+        int textLength = text.length();
+        addBuffer.append(text);
+        Piece newPiece = new Piece(Piece.BufferType.ADD, addBuffer.length() - textLength, textLength);
 
-        if (pieceInfo != null) {
-            Piece originalPiece = pieceInfo.piece;
-            int localIndex = pieceInfo.localIndex;
-            int i = pieceInfo.pieceListIndex;
-
-            Piece beforePiece = (localIndex > 0)
-                    ? new Piece(originalPiece.source, originalPiece.start, localIndex)
-                    : null;
-
-            Piece afterPiece = ((originalPiece.length - localIndex) > 0)
-                ? new Piece(originalPiece.source, originalPiece.start + localIndex, originalPiece.length - localIndex)
-                    : null;
-
-            pieces.remove(originalPiece);
-
-            if (beforePiece != null) {
-                pieces.add(i, beforePiece);
-                i++;
-            }
-
-            pieces.add(i, textPiece);
-            i++; // Increment for the next piece
-
-            if (afterPiece != null) {
-                pieces.add(i, afterPiece);
-            }
-            this.totalLength += text.length();
+        if (pieces.isEmpty()) {
+            pieces.add(newPiece);
+            totalLength += textLength;
             rebuildLineCache();
             return;
         }
-        // 2. Find which piece the index falls into
-        pieces.add(textPiece);
+
+        TextLocation insertionPoint = findLocationAt(position);
+        if (insertionPoint == null) return;
+
+        Piece pieceToSplit = insertionPoint.piece;
+        int splitOffset = insertionPoint.offsetInPiece;
+        int targetIndex = insertionPoint.pieceIndex;
+
+        if (splitOffset == 0) {
+            pieces.add(targetIndex, newPiece);
+        }
+        else if (splitOffset == pieceToSplit.length) {
+            pieces.add(targetIndex + 1, newPiece);
+        } else {
+            Piece leftPart = new Piece(pieceToSplit.source, pieceToSplit.start, splitOffset);
+            Piece rightPart = new Piece(pieceToSplit.source, pieceToSplit.start + splitOffset, pieceToSplit.length - splitOffset);
+
+            pieces.remove(targetIndex);
+            pieces.add(targetIndex, leftPart);
+            pieces.add(targetIndex + 1, newPiece);
+            pieces.add(targetIndex + 2, rightPart);
+
+        }
         this.totalLength += text.length();
         rebuildLineCache();
     }
 
-    public void removeText(int index, int deleteLength) {
-        PieceInfo pieceInfo = getPieceByIndex(index);
+    public void remove(int index, int deleteLength) {
+        TextLocation textLocation = findLocationAt(index);
 
-        if (pieceInfo != null) {
-            Piece originalPiece = pieceInfo.piece;
-            int localIndex = pieceInfo.localIndex;
-            int i = pieceInfo.pieceListIndex;
+        if (textLocation != null) {
+            Piece originalPiece = textLocation.piece;
+            int localIndex = textLocation.offsetInPiece;
+            int i = textLocation.pieceIndex;
 
-            int restInFirst = originalPiece.length - localIndex; // chars from localIndex to end
+            int restInFirst = originalPiece.length - localIndex; // chars from offsetInPiece to end
             Piece beforePiece = (localIndex > 0)
                     ? new Piece(originalPiece.source, originalPiece.start, localIndex)
                     : null;
@@ -297,19 +294,19 @@ public class PieceTable {
         String text = testTable.getText();
         System.out.println(text);
 
-        testTable.insertText(10, "really ");
+        testTable.insert(10, "really ");
         String newtext = testTable.getText();
         System.out.println(newtext);
 
-        testTable.insertText(21, " wow ");
+        testTable.insert(21, " wow ");
         String newtext2 = testTable.getText();
         System.out.println(newtext2);
 
-        testTable.insertText(10, "thing \n");
+        testTable.insert(10, "thing \n");
         String newtext3 = testTable.getText();
         System.out.println(newtext3);
 
-        testTable.removeText(10, 5);
+        testTable.remove(10, 5);
         System.out.println(testTable.getText());
 
         System.out.println(testTable.getLength());
