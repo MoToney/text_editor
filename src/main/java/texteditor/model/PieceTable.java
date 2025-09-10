@@ -4,28 +4,36 @@ import java.util.*;
 
 public class PieceTable {
     private class Piece {
-        boolean isOriginal;
         int start;
         int length;
+        BufferType source;
 
-        Piece(boolean isOriginal, int start, int length) {
-            this.isOriginal = isOriginal;
+        enum BufferType {
+            ORIGINAL,
+            ADD
+        }
+
+        Piece(BufferType source, int start, int length) {
+            this.source = source;
             this.start = start;
             this.length = length;
         }
 
         @Override
         public String toString() {
-            String fragment;
-            if (isOriginal) {
-                fragment = originalBuffer.substring(start, start + length);
-            } else {
-                fragment = addBuffer.substring(start, start + length);
-            }
+            String fragment = getText();
             return String.format(
-                    "Piece(isOriginal=%b, start=%d, length=%d, text='%s')",
-                    isOriginal, start, length, fragment
+                    "Piece(source=%s, start=%d, length=%d, text='%s')",
+                    source, start, length, fragment
             );
+        }
+
+        public String getText() {
+            if (source == BufferType.ORIGINAL) {
+                return originalBuffer.substring(start, start + length);
+            } else {
+                return addBuffer.substring(start, start + length);
+            }
         }
     }
 
@@ -46,9 +54,6 @@ public class PieceTable {
         }
     }
 
-
-
-
     private final String originalBuffer;
     private final StringBuilder addBuffer;
     private final List<Piece> pieces;
@@ -61,8 +66,8 @@ public class PieceTable {
         this.pieces = new ArrayList<>();
         this.lineCache = new ArrayList<>();
 
-        if (!originalText.isEmpty()) {
-            pieces.add(new Piece(true, 0, originalText.length()));
+        if (!originalText.isEmpty() && originalText != null) {
+            pieces.add(new Piece(Piece.BufferType.ORIGINAL,0, originalText.length()));
             this.totalLength = originalText.length();
         }
 
@@ -84,10 +89,10 @@ public class PieceTable {
 
         while (currentPieceIndex < pieces.size()) {
             Piece p = pieces.get(currentPieceIndex);
-            String buffer = p.isOriginal ? originalBuffer : addBuffer.toString();
+            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
 
             for (int i = 0; i < p.length; i++) {
-                char c = buffer.charAt(p.start + i);
+                char c = bufferContent.charAt(p.start + i);
                 lineLength++;
                 currentOffsetInPiece++;
 
@@ -128,40 +133,33 @@ public class PieceTable {
 
         StringBuilder lineBuilder = new StringBuilder(lineInfo.length);
         int remainingLength = lineInfo.length;
-
         int currentPieceIndex = lineInfo.startPieceIndex;
-        int offset = lineInfo.startOffsetInPiece;
+        int offsetInPiece = lineInfo.startOffsetInPiece;
 
         while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
             Piece p = pieces.get(currentPieceIndex);
-            String buffer = p.isOriginal ? originalBuffer : addBuffer.toString();
+            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+            int charsToRead = Math.min(remainingLength, p.length - offsetInPiece);
 
-            int charsToReadFromPiece = Math.min(remainingLength, p.length - offset);
-            lineBuilder.append(buffer, p.start + offset, p.start + offset + charsToReadFromPiece);
+            lineBuilder.append(bufferContent, p.start + offsetInPiece, p.start + offsetInPiece + charsToRead);
 
-            remainingLength -= charsToReadFromPiece;
+            remainingLength -= charsToRead;
             currentPieceIndex++;
-            offset = 0;
+            offsetInPiece = 0;
         }
-
-        String lineText = lineBuilder.toString();
-        return lineText;
+        return lineBuilder.toString();
     }
 
 
-    public String getAllDocumentText() {
+    public String getText() {
         StringBuilder result = new StringBuilder();
         for (Piece piece : pieces) {
-            if (piece.isOriginal) {
-                result.append(originalBuffer.substring(piece.start, piece.start + piece.length));
-            } else {
-                result.append(addBuffer.substring(piece.start, piece.start + piece.length));
-            }
+            result.append(piece.getText());
         }
         return result.toString();
     }
 
-    public int getDocumentLength() {
+    public int getLength() {
         return this.totalLength;
     }
 
@@ -179,9 +177,13 @@ public class PieceTable {
         return null;
     }
 
+    public String getTextByIndex(int index, int length) {
+        return "";
+    }
+
     public void insertText(int index, String text) {
         // 1. Insert new text into the add buffer and create a piece
-        Piece textPiece = new Piece(false, addBuffer.length(), text.length());
+        Piece textPiece = new Piece(Piece.BufferType.ADD, addBuffer.length(), text.length());
         this.addBuffer.append(text);
 
         PieceInfo pieceInfo = getPieceByIndex(index);
@@ -192,11 +194,11 @@ public class PieceTable {
             int i = pieceInfo.pieceListIndex;
 
             Piece beforePiece = (localIndex > 0)
-                    ? new Piece(originalPiece.isOriginal, originalPiece.start, localIndex)
+                    ? new Piece(originalPiece.source, originalPiece.start, localIndex)
                     : null;
 
             Piece afterPiece = ((originalPiece.length - localIndex) > 0)
-                ? new Piece(originalPiece.isOriginal, originalPiece.start + localIndex, originalPiece.length - localIndex)
+                ? new Piece(originalPiece.source, originalPiece.start + localIndex, originalPiece.length - localIndex)
                     : null;
 
             pieces.remove(originalPiece);
@@ -232,13 +234,13 @@ public class PieceTable {
 
             int restInFirst = originalPiece.length - localIndex; // chars from localIndex to end
             Piece beforePiece = (localIndex > 0)
-                    ? new Piece(originalPiece.isOriginal, originalPiece.start, localIndex)
+                    ? new Piece(originalPiece.source, originalPiece.start, localIndex)
                     : null;
 
             // Case 1: delete fits entirely inside the first piece
             if (deleteLength < restInFirst) {
                 Piece afterPiece = new Piece(
-                        originalPiece.isOriginal,
+                        originalPiece.source,
                         originalPiece.start + localIndex + deleteLength,
                         restInFirst - deleteLength
                 );
@@ -278,7 +280,7 @@ public class PieceTable {
                     return;
                 }
                 else {
-                    Piece notDeletedPiecePortion = new Piece(currentPiece.isOriginal, currentPiece.start + remaining, currentPiece.length - remaining);
+                    Piece notDeletedPiecePortion = new Piece(currentPiece.source, currentPiece.start + remaining, currentPiece.length - remaining);
                     pieces.remove(i);
                     pieces.add(i, notDeletedPiecePortion);
                     this.totalLength -= deleteLength;
@@ -292,25 +294,25 @@ public class PieceTable {
 
     public static void main(String[] args) {
         PieceTable testTable = new PieceTable("Does this work ");
-        String text = testTable.getAllDocumentText();
+        String text = testTable.getText();
         System.out.println(text);
 
         testTable.insertText(10, "really ");
-        String newtext = testTable.getAllDocumentText();
+        String newtext = testTable.getText();
         System.out.println(newtext);
 
         testTable.insertText(21, " wow ");
-        String newtext2 = testTable.getAllDocumentText();
+        String newtext2 = testTable.getText();
         System.out.println(newtext2);
 
         testTable.insertText(10, "thing \n");
-        String newtext3 = testTable.getAllDocumentText();
+        String newtext3 = testTable.getText();
         System.out.println(newtext3);
 
         testTable.removeText(10, 5);
-        System.out.println(testTable.getAllDocumentText());
+        System.out.println(testTable.getText());
 
-        System.out.println(testTable.getDocumentLength());
+        System.out.println(testTable.getLength());
 
         System.out.println(testTable.getLineCount());
 
