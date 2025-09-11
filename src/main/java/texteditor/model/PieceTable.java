@@ -7,6 +7,7 @@ public class PieceTable {
         int start;
         int length;
         BufferType source;
+        List<Integer> lineStarts;
 
         enum BufferType {
             ORIGINAL,
@@ -17,6 +18,8 @@ public class PieceTable {
             this.source = source;
             this.start = start;
             this.length = length;
+            lineStarts = getLineStarts();
+
         }
 
         @Override
@@ -34,6 +37,20 @@ public class PieceTable {
             } else {
                 return addBuffer.substring(start, start + length);
             }
+        }
+
+        public List<Integer> getLineStarts() {
+            List<Integer> starts = new ArrayList<>();
+            String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+
+            starts.add(0);
+
+            for (int i = start; i < start + length; i++) {
+                if (buffer.charAt(i) == '\n') {
+                    starts.add(i - start + 1);
+                }
+            }
+            return starts;
         }
     }
 
@@ -73,6 +90,19 @@ public class PieceTable {
 
         rebuildLineCache();
     }
+
+    public String getText() {
+        StringBuilder result = new StringBuilder();
+        for (Piece piece : pieces) {
+            result.append(piece.getText());
+        }
+        return result.toString();
+    }
+
+    public int getLength() {
+        return this.totalLength;
+    }
+
     public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
 
     public TextLocation findLocationAt(int position) {
@@ -85,31 +115,6 @@ public class PieceTable {
             }
         }
         return null;
-    }
-
-    public TextLocation findLocationAt1(int position) {
-        int left = 0, right = pieces.size() - 1;
-        int result = -1;
-
-        while (left <= right) {
-            int mid = left + (right - left) / 2;
-
-            Piece piece = pieces.get(mid);
-
-            if (piece.start > position) {
-                right = mid - 1;
-            } else if (piece.start + piece.length < position) {
-                left = mid;
-            } else {
-                result = mid;
-            }
-        }
-        if (result == -1) return null;;
-
-        int offsetInPiece = position - pieces.get(result).start;
-
-        return new TextLocation(pieces.get(result), offsetInPiece, result);
-
     }
 
     public String getTextSpan(int position, int length) {
@@ -218,17 +223,6 @@ public class PieceTable {
         rebuildLineCache();
     }
 
-    public String getText() {
-        StringBuilder result = new StringBuilder();
-        for (Piece piece : pieces) {
-            result.append(piece.getText());
-        }
-        return result.toString();
-    }
-
-    public int getLength() {
-        return this.totalLength;
-    }
 
 
 
@@ -239,34 +233,48 @@ public class PieceTable {
             return;
         }
 
-        int currentPieceIndex = 0;
-        int currentOffsetInPiece = 0;
-        int lineStartPieceIndex = 0;
-        int lineStartOffsetInPiece = 0;
-        int lineLength = 0;
+        int currentLineStartPiece = 0;
+        int currentLineStartOffset = 0;
+        int currentLineLength = 0;
 
-        while (currentPieceIndex < pieces.size()) {
-            Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+        for (int pieceIndex = 0; pieceIndex < pieces.size(); pieceIndex++) {
+            Piece piece = pieces.get(pieceIndex);
+            List<Integer> lineStarts = piece.lineStarts;
 
-            for (int i = 0; i < p.length; i++) {
-                char c = bufferContent.charAt(p.start + i);
-                lineLength++;
-                currentOffsetInPiece++;
+            if (lineStarts.size() <= 1) {
+                currentLineLength += piece.length;
+            } else {
+                int prevLineStart = 0;
 
-                if (c == '\n') {
-                    lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
-                    lineStartPieceIndex = currentPieceIndex;
-                    lineStartOffsetInPiece = currentOffsetInPiece;
-                    lineLength = 0;
+                for (int i = 1; i < lineStarts.size(); i++) {
+                    int newlineEnd = lineStarts.get(i);
+                    int segmentLength = newlineEnd - prevLineStart;
+                    currentLineLength += segmentLength;
+
+                    lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
+
+                    currentLineStartPiece = pieceIndex;
+                    currentLineStartOffset = newlineEnd;
+                    currentLineLength = 0;
+                    prevLineStart = newlineEnd;
+                }
+
+                if (prevLineStart < piece.length) {
+                    currentLineLength += piece.length - prevLineStart;
                 }
             }
-            currentPieceIndex++;
-            currentOffsetInPiece = 0;
         }
-        if (lineLength > 0 || lineCache.isEmpty()) {
-            lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
+        if (currentLineLength > 0 || lineCache.isEmpty()) {
+            lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
         }
+    }
+
+    private int getGlobalPosition(int pieceIndex) {
+        int position = 0;
+        for (int i = 0; i < pieceIndex && i < pieces.size(); i++) {
+            position += pieces.get(i).length;
+        }
+        return position;
     }
 
     public int getLineCount() {
