@@ -73,96 +73,6 @@ public class PieceTable {
 
         rebuildLineCache();
     }
-
-    private void rebuildLineCache() {
-        lineCache.clear();
-        if (pieces.isEmpty()) {
-            lineCache.add(new Line(0,0,0));
-            return;
-        }
-
-        int currentPieceIndex = 0;
-        int currentOffsetInPiece = 0;
-        int lineStartPieceIndex = 0;
-        int lineStartOffsetInPiece = 0;
-        int lineLength = 0;
-
-        while (currentPieceIndex < pieces.size()) {
-            Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
-
-            for (int i = 0; i < p.length; i++) {
-                char c = bufferContent.charAt(p.start + i);
-                lineLength++;
-                currentOffsetInPiece++;
-
-                if (c == '\n') {
-                    lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
-                    lineStartPieceIndex = currentPieceIndex;
-                    lineStartOffsetInPiece = currentOffsetInPiece;
-                    lineLength = 0;
-                }
-            }
-            currentPieceIndex++;
-            currentOffsetInPiece = 0;
-        }
-        if (lineLength > 0 || lineCache.isEmpty()) {
-            lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
-        }
-    }
-
-    public int getLineCount() {
-        return this.lineCache.size();
-    }
-
-    public int getLineLength(int lineIndex) {
-        return getLine(lineIndex).length();
-    }
-
-    public boolean isLastLine(int lineIndex) {
-        return lineIndex == getLineCount() - 1;
-    }
-
-    public String getLine(int lineIndex) {
-        if (lineIndex < 0 || lineIndex >= lineCache.size()) {
-            throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);
-        }
-
-        Line lineInfo = lineCache.get(lineIndex);
-        if (lineInfo.length == 0) return "";
-
-        StringBuilder lineBuilder = new StringBuilder(lineInfo.length);
-        int remainingLength = lineInfo.length;
-        int currentPieceIndex = lineInfo.startPieceIndex;
-        int offsetInPiece = lineInfo.startOffsetInPiece;
-
-        while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
-            Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
-            int charsToRead = Math.min(remainingLength, p.length - offsetInPiece);
-
-            lineBuilder.append(bufferContent, p.start + offsetInPiece, p.start + offsetInPiece + charsToRead);
-
-            remainingLength -= charsToRead;
-            currentPieceIndex++;
-            offsetInPiece = 0;
-        }
-        return lineBuilder.toString();
-    }
-
-
-    public String getText() {
-        StringBuilder result = new StringBuilder();
-        for (Piece piece : pieces) {
-            result.append(piece.getText());
-        }
-        return result.toString();
-    }
-
-    public int getLength() {
-        return this.totalLength;
-    }
-
     public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
 
     public TextLocation findLocationAt(int position) {
@@ -177,9 +87,35 @@ public class PieceTable {
         return null;
     }
 
+    public TextLocation findLocationAt1(int position) {
+        int left = 0, right = pieces.size() - 1;
+        int result = -1;
+
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+
+            Piece piece = pieces.get(mid);
+
+            if (piece.start > position) {
+                right = mid - 1;
+            } else if (piece.start + piece.length < position) {
+                left = mid;
+            } else {
+                result = mid;
+            }
+        }
+        if (result == -1) return null;;
+
+        int offsetInPiece = position - pieces.get(result).start;
+
+        return new TextLocation(pieces.get(result), offsetInPiece, result);
+
+    }
+
     public String getTextSpan(int position, int length) {
         return "";
     }
+
 
     public void insert(int position, String text) {
         if (text == null || text.isEmpty()) return;
@@ -280,6 +216,96 @@ public class PieceTable {
         }
         totalLength -= length;
         rebuildLineCache();
+    }
+
+    public String getText() {
+        StringBuilder result = new StringBuilder();
+        for (Piece piece : pieces) {
+            result.append(piece.getText());
+        }
+        return result.toString();
+    }
+
+    public int getLength() {
+        return this.totalLength;
+    }
+
+
+
+    private void rebuildLineCache() {
+        lineCache.clear();
+        if (pieces.isEmpty()) {
+            lineCache.add(new Line(0,0,0));
+            return;
+        }
+
+        int currentPieceIndex = 0;
+        int currentOffsetInPiece = 0;
+        int lineStartPieceIndex = 0;
+        int lineStartOffsetInPiece = 0;
+        int lineLength = 0;
+
+        while (currentPieceIndex < pieces.size()) {
+            Piece p = pieces.get(currentPieceIndex);
+            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+
+            for (int i = 0; i < p.length; i++) {
+                char c = bufferContent.charAt(p.start + i);
+                lineLength++;
+                currentOffsetInPiece++;
+
+                if (c == '\n') {
+                    lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
+                    lineStartPieceIndex = currentPieceIndex;
+                    lineStartOffsetInPiece = currentOffsetInPiece;
+                    lineLength = 0;
+                }
+            }
+            currentPieceIndex++;
+            currentOffsetInPiece = 0;
+        }
+        if (lineLength > 0 || lineCache.isEmpty()) {
+            lineCache.add(new Line(lineStartPieceIndex, lineStartOffsetInPiece, lineLength));
+        }
+    }
+
+    public int getLineCount() {
+        return this.lineCache.size();
+    }
+
+    public int getLineLength(int lineIndex) {
+        return getLine(lineIndex).length();
+    }
+
+    public boolean isLastLine(int lineIndex) {
+        return lineIndex == getLineCount() - 1;
+    }
+
+    public String getLine(int lineIndex) {
+        if (lineIndex < 0 || lineIndex >= lineCache.size()) {
+            throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);
+        }
+
+        Line lineInfo = lineCache.get(lineIndex);
+        if (lineInfo.length == 0) return "";
+
+        StringBuilder lineBuilder = new StringBuilder(lineInfo.length);
+        int remainingLength = lineInfo.length;
+        int currentPieceIndex = lineInfo.startPieceIndex;
+        int offsetInPiece = lineInfo.startOffsetInPiece;
+
+        while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
+            Piece p = pieces.get(currentPieceIndex);
+            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+            int charsToRead = Math.min(remainingLength, p.length - offsetInPiece);
+
+            lineBuilder.append(bufferContent, p.start + offsetInPiece, p.start + offsetInPiece + charsToRead);
+
+            remainingLength -= charsToRead;
+            currentPieceIndex++;
+            offsetInPiece = 0;
+        }
+        return lineBuilder.toString();
     }
 
     public static void main(String[] args) {
