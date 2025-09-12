@@ -3,23 +3,6 @@ package texteditor.model;
 import java.util.*;
 
 public class PieceTable {
-    private class Line {
-        int startPieceIndex;
-        int startOffsetInPiece;
-        int length;
-
-        Line(int startPieceIndex, int startOffsetInPiece, int length) {
-            this.startPieceIndex = startPieceIndex;
-            this.startOffsetInPiece = startOffsetInPiece;
-            this.length = length;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("Line(startPiece=%d, startOffset=%d, length=%d)", startPieceIndex, startOffsetInPiece, length);
-        }
-    }
-
     private class Node {
         Piece piece;
         Node left, right;
