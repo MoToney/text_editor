@@ -3,57 +3,6 @@ package texteditor.model;
 import java.util.*;
 
 public class PieceTable {
-    private class Piece {
-        int start;
-        int length;
-        BufferType source;
-        List<Integer> lineStarts;
-
-        enum BufferType {
-            ORIGINAL,
-            ADD
-        }
-
-        Piece(BufferType source, int start, int length) {
-            this.source = source;
-            this.start = start;
-            this.length = length;
-            lineStarts = getLineStarts();
-
-        }
-
-        @Override
-        public String toString() {
-            String fragment = getText();
-            return String.format(
-                    "Piece(source=%s, start=%d, length=%d, text='%s')",
-                    source, start, length, fragment
-            );
-        }
-
-        public String getText() {
-            if (source == BufferType.ORIGINAL) {
-                return originalBuffer.substring(start, start + length);
-            } else {
-                return addBuffer.substring(start, start + length);
-            }
-        }
-
-        public List<Integer> getLineStarts() {
-            List<Integer> starts = new ArrayList<>();
-            String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
-
-            starts.add(0);
-
-            for (int i = start; i < start + length; i++) {
-                if (buffer.charAt(i) == '\n') {
-                    starts.add(i - start + 1);
-                }
-            }
-            return starts;
-        }
-    }
-
     private class Line {
         int startPieceIndex;
         int startOffsetInPiece;
@@ -71,9 +20,31 @@ public class PieceTable {
         }
     }
 
+    private class Node {
+        Piece piece;
+        Node left, right;
+        int length;
+
+        Node(Piece piece) {
+            this.piece = piece;
+            this.length = piece.getLength();
+        }
+
+        Node(Node left, Node right) {
+            this.left = left;
+            this.right = right;
+            this.length = (left != null ? left.length : 0) + (right != null ? right.length : 0);
+        }
+
+        boolean isLeaf() {
+            return piece != null;
+        }
+    }
+
     private final String originalBuffer;
     private final StringBuilder addBuffer;
     private final List<Piece> pieces;
+    private Node root;
     private final List<Line> lineCache;
     private int totalLength;
 
@@ -84,17 +55,45 @@ public class PieceTable {
         this.lineCache = new ArrayList<>();
 
         if (!originalText.isEmpty() && originalText != null) {
-            pieces.add(new Piece(Piece.BufferType.ORIGINAL,0, originalText.length()));
-            this.totalLength = originalText.length();
+            Piece piece = new Piece(Piece.BufferType.ORIGINAL, 0, originalText.length());
+            this.root = new Node(piece);
+            pieces.add(piece);
+            this.totalLength = piece.getLength();
         }
 
         rebuildLineCache();
     }
 
+    private void collectText(Node node, StringBuilder stringBuilder) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            stringBuilder.append(node.piece.getText(originalBuffer, addBuffer));
+        } else {
+            collectText(node.left, stringBuilder);
+            collectText(node.right, stringBuilder);
+        }
+    }
+
+    private Node buildTree(List<Node> nodes) {
+        if (nodes.isEmpty()) return null;
+        while (nodes.size() > 1) {
+            List<Node> next = new ArrayList<>();
+            for (int i = 0; i < nodes.size(); i+=2) {
+                if (i + 1 < nodes.size()) {
+                    next.add(new Node(nodes.get(i), nodes.get(i + 1)));
+                } else {
+                    next.add(nodes.get(i));
+                }
+            }
+            nodes = next;
+        }
+        return nodes.get(0);
+    }
+
     public String getText() {
         StringBuilder result = new StringBuilder();
         for (Piece piece : pieces) {
-            result.append(piece.getText());
+            result.append(piece.getText(originalBuffer, addBuffer));
         }
         return result.toString();
     }
@@ -105,12 +104,30 @@ public class PieceTable {
 
     public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
 
+    public TextLocation findLocation(int position) {
+        return findLocationRecursive(root, position);
+    }
+
+    public TextLocation findLocationRecursive(Node node, int position) {
+        if (node.isLeaf()) {
+            return new TextLocation(node.piece, position, -1);
+        }
+
+        int leftLen = (node.left != null) ? node.left.length : 0;
+
+        if (position < leftLen) {
+            return findLocationRecursive(node.left, position);
+        } else {
+            return findLocationRecursive(node.right, position - leftLen);
+        }
+    }
+
     public TextLocation findLocationAt(int position) {
         int currentLength = 0;
         for (int i = 0; i < pieces.size(); i++) {
-            currentLength += pieces.get(i).length;
+            currentLength += pieces.get(i).getLength();
             if (currentLength >= position) {
-                int localIndex = pieces.get(i).length - (currentLength - position);
+                int localIndex = pieces.get(i).getLength() - (currentLength - position);
                 return new TextLocation(pieces.get(i), localIndex, i);
             }
         }
@@ -119,6 +136,60 @@ public class PieceTable {
 
     public String getTextSpan(int position, int length) {
         return "";
+    }
+
+    private Node insert(Node node, int position, String text) {
+        if (node.isLeaf()) {
+            Piece oldPiece = node.piece;
+            int offset = position;
+
+            // Case 1: insert at start
+            if (offset == 0) {
+                Node newLeaf = new Node(new Piece(Piece.BufferType.ADD,
+                        addBuffer.length(), text.length()));
+                addBuffer.append(text);
+                return new Node(newLeaf, node);
+            }
+
+            // Case 2: insert at end
+            if (offset == oldPiece.getLength()) {
+                Node newLeaf = new Node(new Piece(Piece.BufferType.ADD,
+                        addBuffer.length(), text.length()));
+                addBuffer.append(text);
+                return new Node(node, newLeaf);
+            }
+
+            // Case 3: split in middle
+            Piece leftPart = new Piece(oldPiece.getSource(), oldPiece.getStart(), offset);
+            Piece rightPart = new Piece(oldPiece.getSource(),
+                    oldPiece.getStart() + offset,
+                    oldPiece.getLength() - offset);
+            Node leftLeaf = new Node(leftPart);
+            Node rightLeaf = new Node(rightPart);
+
+            Node newLeaf = new Node(new Piece(Piece.BufferType.ADD,
+                    addBuffer.length(), text.length()));
+            addBuffer.append(text);
+
+            // Build subtree: (leftLeaf + newLeaf + rightLeaf)
+            return new Node(leftLeaf, new Node(newLeaf, rightLeaf));
+        }
+
+        // Internal node: decide whether to go left or right
+        int leftLen = (node.left != null) ? node.left.length : 0;
+        if (position < leftLen) {
+            Node newLeft = insert(node.left, position, text);
+            return new Node(newLeft, node.right);
+        } else {
+            Node newRight = insert(node.right, position - leftLen, text);
+            return new Node(node.left, newRight);
+        }
+    }
+
+    public void insertRecursive(int position, String text) {
+        if (text == null || text.isEmpty()) return;
+        root = insert(root, position, text);
+        totalLength += text.length();
     }
 
 
@@ -146,11 +217,11 @@ public class PieceTable {
         if (splitOffset == 0) {
             pieces.add(targetIndex, newPiece);
         }
-        else if (splitOffset == pieceToSplit.length) {
+        else if (splitOffset == pieceToSplit.getLength()) {
             pieces.add(targetIndex + 1, newPiece);
         } else {
-            Piece leftPart = new Piece(pieceToSplit.source, pieceToSplit.start, splitOffset);
-            Piece rightPart = new Piece(pieceToSplit.source, pieceToSplit.start + splitOffset, pieceToSplit.length - splitOffset);
+            Piece leftPart = new Piece(pieceToSplit.getSource(), pieceToSplit.getStart(), splitOffset);
+            Piece rightPart = new Piece(pieceToSplit.getSource(), pieceToSplit.getStart() + splitOffset, pieceToSplit.getLength() - splitOffset);
 
             pieces.remove(targetIndex);
             pieces.add(targetIndex, leftPart);
@@ -178,12 +249,12 @@ public class PieceTable {
             pieces.remove(pieceIndex);
 
             Piece leftPart = (startOffset > 0)
-                    ? new Piece(pieceToModify.source, pieceToModify.start, startOffset)
+                    ? new Piece(pieceToModify.getSource(), pieceToModify.getStart(), startOffset)
                     : null;
 
-            Piece rightPart = (endOffset < pieceToModify.length)
-                    ? new Piece(pieceToModify.source, pieceToModify.start + endOffset,
-                    pieceToModify.length - endOffset)
+            Piece rightPart = (endOffset < pieceToModify.getLength())
+                    ? new Piece(pieceToModify.getSource(), pieceToModify.getStart() + endOffset,
+                    pieceToModify.getLength() - endOffset)
                     : null;
 
             int currentIndex = pieceIndex;
@@ -204,16 +275,16 @@ public class PieceTable {
                 pieces.remove(i);
             }
 
-            if (lastPieceEndOffset < lastPiece.length) {
-                Piece rightPart = new Piece(lastPiece.source, lastPiece.start + lastPieceEndOffset,
-                        lastPiece.length - lastPieceEndOffset);
+            if (lastPieceEndOffset < lastPiece.getLength()) {
+                Piece rightPart = new Piece(lastPiece.getSource(), lastPiece.getStart() + lastPieceEndOffset,
+                        lastPiece.getLength() - lastPieceEndOffset);
                 pieces.set(firstPieceIndex + 1, rightPart);
             } else {
                 pieces.remove(firstPieceIndex + 1);
             }
 
             if (firstPieceStartOffset > 0) {
-                Piece leftPart = new Piece(firstPiece.source, firstPiece.start, firstPieceStartOffset);
+                Piece leftPart = new Piece(firstPiece.getSource(), firstPiece.getStart(), firstPieceStartOffset);
                 pieces.set(firstPieceIndex, leftPart);
             } else {
                 pieces.remove(firstPieceIndex);
@@ -222,9 +293,6 @@ public class PieceTable {
         totalLength -= length;
         rebuildLineCache();
     }
-
-
-
 
     private void rebuildLineCache() {
         lineCache.clear();
@@ -239,42 +307,35 @@ public class PieceTable {
 
         for (int pieceIndex = 0; pieceIndex < pieces.size(); pieceIndex++) {
             Piece piece = pieces.get(pieceIndex);
-            List<Integer> lineStarts = piece.lineStarts;
+            List<Integer> lineStarts = piece.getLineStarts(originalBuffer, addBuffer);
 
             if (lineStarts.size() <= 1) {
-                currentLineLength += piece.length;
+                currentLineLength += piece.getLength();
             } else {
-                int prevLineStart = 0;
-
                 for (int i = 1; i < lineStarts.size(); i++) {
-                    int newlineEnd = lineStarts.get(i);
-                    int segmentLength = newlineEnd - prevLineStart;
+                    int lineStartInPiece = (i == 1) ? 0 : lineStarts.get(i - 1);
+                    int lineEndInPiece = lineStarts.get(i) - 1;
+                    int segmentLength = lineEndInPiece - lineStartInPiece + 1;
+
                     currentLineLength += segmentLength;
 
                     lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
 
                     currentLineStartPiece = pieceIndex;
-                    currentLineStartOffset = newlineEnd;
+                    currentLineStartOffset = lineStarts.get(i);
                     currentLineLength = 0;
-                    prevLineStart = newlineEnd;
+
                 }
 
-                if (prevLineStart < piece.length) {
-                    currentLineLength += piece.length - prevLineStart;
+                int lastNewlinePos = lineStarts.get(lineStarts.size() - 1);
+                if (lastNewlinePos < piece.getLength()) {
+                    currentLineLength += piece.getLength() - lastNewlinePos;
                 }
             }
         }
         if (currentLineLength > 0 || lineCache.isEmpty()) {
             lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
         }
-    }
-
-    private int getGlobalPosition(int pieceIndex) {
-        int position = 0;
-        for (int i = 0; i < pieceIndex && i < pieces.size(); i++) {
-            position += pieces.get(i).length;
-        }
-        return position;
     }
 
     public int getLineCount() {
@@ -304,10 +365,10 @@ public class PieceTable {
 
         while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
             Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.source == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
-            int charsToRead = Math.min(remainingLength, p.length - offsetInPiece);
+            String bufferContent = (p.getSource() == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+            int charsToRead = Math.min(remainingLength, p.getLength() - offsetInPiece);
 
-            lineBuilder.append(bufferContent, p.start + offsetInPiece, p.start + offsetInPiece + charsToRead);
+            lineBuilder.append(bufferContent, p.getStart() + offsetInPiece, p.getStart() + offsetInPiece + charsToRead);
 
             remainingLength -= charsToRead;
             currentPieceIndex++;
