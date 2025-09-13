@@ -66,14 +66,7 @@ public class PieceTree {
         return sb.toString();
     }
 
-    public PieceTable.TextLocation findLocation(int position) {
-        if (root == null) return null;
-        if (position < 0) position = 0;
-        if (position > root.length) position = root.length;
-        return findLocationRecursive(root, position);
-    }
-
-    public PieceTable.TextLocation findLocationRecursive(Node node, int position) {
+    private PieceTable.TextLocation findLocationRecursive(Node node, int position) {
         if (node.isLeaf()) {
             return new PieceTable.TextLocation(node.piece, position, -1);
         }
@@ -85,6 +78,13 @@ public class PieceTree {
         } else {
             return findLocationRecursive(node.right, position - leftLen);
         }
+    }
+
+    public PieceTable.TextLocation findLocation(int position) {
+        if (root == null) return null;
+        if (position < 0) position = 0;
+        if (position > root.length) position = root.length;
+        return findLocationRecursive(root, position);
     }
 
     public void insert(int position, Piece pieceToInsert) {
@@ -103,34 +103,31 @@ public class PieceTree {
     }
 
     private Node insertRecursive(Node node, int position, Piece pieceToInsert) {
+
         if (node.isLeaf()) {
             Piece old = node.piece;
             int oldLen = old.getLength();
             int offset = Math.max(0, Math.min(position, oldLen));
 
-
             if (offset == 0) {
-// new piece before current leaf
+            // new piece before current leaf
                 return new Node(new Node(pieceToInsert), node);
             }
             if (offset == oldLen) {
-// new piece after current leaf
+            // new piece after current leaf
                 return new Node(node, new Node(pieceToInsert));
             }
 
-
-// split existing leaf into left + right, and insert new piece in the middle
+            // split existing leaf into left + right, and insert new piece in the middle
             Piece leftPiece = new Piece(old.getSource(), old.getStart(), offset);
             Piece rightPiece = new Piece(old.getSource(), old.getStart() + offset, oldLen - offset);
             Node leftLeaf = new Node(leftPiece);
             Node rightLeaf = new Node(rightPiece);
             Node newLeaf = new Node(pieceToInsert);
 
-
-// (leftLeaf, (newLeaf, rightLeaf)) - keeps the insertion local
+            // (leftLeaf, (newLeaf, rightLeaf)) - keeps the insertion local
             return new Node(leftLeaf, new Node(newLeaf, rightLeaf));
         }
-
 
         int leftLen = (node.left != null) ? node.left.length : 0;
         if (position < leftLen) {
@@ -142,24 +139,8 @@ public class PieceTree {
         }
     }
 
-    public List<Piece> toPieceList() {
-        List<Piece> out = new ArrayList<>();
-        collectPieces(root, out);
-        return out;
-    }
-
-    private void collectPieces(Node node, List<Piece> out) {
-        if (node == null) return;
-        if (node.isLeaf()) out.add(node.piece);
-        else {
-            collectPieces(node.left, out);
-            collectPieces(node.right, out);
-        }
-    }
-
     private Node removeRecursive(Node node, int position, int removeLength) {
         if (node == null || removeLength <= 0) return node;
-
 
         if (node.isLeaf()) {
             int pieceLen = node.piece.getLength();
@@ -167,10 +148,8 @@ public class PieceTree {
             int end = Math.max(0, Math.min(position + removeLength, pieceLen));
             if (start >= end) return node; // nothing to remove in this leaf
 
-
             int leftLen = start;
             int rightLen = pieceLen - end;
-
 
             if (leftLen > 0 && rightLen > 0) {
                 Piece leftPiece = new Piece(node.piece.getSource(), node.piece.getStart(), leftLen);
@@ -188,9 +167,7 @@ public class PieceTree {
             }
         }
 
-
         int leftSubLen = (node.left != null) ? node.left.length : 0;
-
 
         if (position + removeLength <= leftSubLen) {
 // deletion entirely in left subtree
@@ -210,6 +187,12 @@ public class PieceTree {
         }
     }
 
+    private Node combine(Node left, Node right) {
+        if (left == null) return right;
+        if (right == null) return left;
+        return new Node(left, right);
+    }
+
     public void remove(int position, int removeLength) {
         if (removeLength <= 0 || root == null) return;
 
@@ -223,12 +206,18 @@ public class PieceTree {
         root = removeRecursive(root, position, removeLength);
     }
 
-
-    private Node combine(Node left, Node right) {
-        if (left == null) return right;
-        if (right == null) return left;
-        return new Node(left, right);
+    private void collectPieces(Node node, List<Piece> out) {
+        if (node == null) return;
+        if (node.isLeaf()) out.add(node.piece);
+        else {
+            collectPieces(node.left, out);
+            collectPieces(node.right, out);
+        }
     }
 
-
+    public List<Piece> toPieceList() {
+        List<Piece> out = new ArrayList<>();
+        collectPieces(root, out);
+        return out;
+    }
 }
