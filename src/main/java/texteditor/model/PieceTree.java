@@ -206,23 +206,6 @@ public class PieceTree {
         }
     }
 
-    public void addSiblingNode(Node oldLeaf, Node newLeaf) {
-        Node grandparent = oldLeaf.parent; // this was originally the parent of the node that needs a sibling
-
-        // a new parent will point to the original node and the new node, and it will have the original node's parent (now grandparent) as it's parent
-        Node newParent = new Node(newLeaf, oldLeaf);
-        newParent.parent = grandparent;
-
-        if (grandparent == null) {
-            root = newParent; // this would occur when the root node is the only leaf, and it's being completely replaced
-        } else if (grandparent.left == oldLeaf) {
-            grandparent.left = newParent;
-        } else {
-            grandparent.right = newParent;
-        }
-        bubbleRecalc(newParent);
-    }
-
     private void updateParentChild(Node oldChild, Node newChild) {
         Node parent = (oldChild != null) ? oldChild.parent : null;
 
@@ -244,6 +227,23 @@ public class PieceTree {
 
         Node start = (newChild != null) ? newChild : parent; // recalculate based on the leaf, if no leaf update parent weight
         if (start != null) bubbleRecalc(start);
+    }
+
+    public void addSiblingNode(Node oldLeaf, Node newLeaf, boolean newOnLeft) {
+        Node grandparent = oldLeaf.parent; // this was originally the parent of the node that needs a sibling
+
+        // a new parent will point to the original node and the new node, and it will have the original node's parent (now grandparent) as it's parent
+        Node newParent = newOnLeft ? new Node(newLeaf, oldLeaf) : new Node(oldLeaf, newLeaf);
+        newParent.parent = grandparent;
+
+        if (grandparent == null) {
+            root = newParent; // this would occur when the root node is the only leaf, and it's being completely replaced
+        } else if (grandparent.left == oldLeaf) {
+            grandparent.left = newParent;
+        } else {
+            grandparent.right = newParent;
+        }
+        bubbleRecalc(newParent);
     }
 
     public void insert(int position, Piece pieceToInsert) {
@@ -272,21 +272,13 @@ public class PieceTree {
 
             if (offset == 0) {
                 Node newLeaf = new Node(pieceToInsert);
-                addSiblingNode(node, newLeaf);
+                addSiblingNode(node, newLeaf, true);
                 return newLeaf;
 
             } else if (offset == oldLen) {
                 // new piece after current leaf
                 Node newLeaf = new Node(pieceToInsert);
-                Node newParent = new Node(node, newLeaf);
-                if (node == root) {
-                    root = newParent;
-                    newParent.parent = null;
-                }
-                else {
-                    updateParentChild(node, newParent);
-                }
-                bubbleRecalc(newParent);
+                addSiblingNode(node, newLeaf, false);
                 return newLeaf;
 
             } else {
