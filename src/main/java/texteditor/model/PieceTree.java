@@ -101,7 +101,7 @@ public class PieceTree {
     }
 
     private void collectText(Node node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
-        if (node == null){
+        if (node == null) {
             return;
         }
         if (node.isLeaf()) {
@@ -198,7 +198,7 @@ public class PieceTree {
         y.recalc();
     }
 
-    public void bubbleRecalc(Node start) {
+    private void bubbleRecalc(Node start) {
         Node cur = start;
         while (cur != null) {
             cur.recalc();
@@ -220,7 +220,6 @@ public class PieceTree {
         } else {
             parent.right = newChild;
         }
-
         if (newChild != null) {
             newChild.parent = parent;
         }
@@ -229,21 +228,23 @@ public class PieceTree {
         if (start != null) bubbleRecalc(start);
     }
 
-    public void addSiblingNode(Node oldLeaf, Node newLeaf, boolean newOnLeft) {
-        Node grandparent = oldLeaf.parent; // this was originally the parent of the node that needs a sibling
-
-        // a new parent will point to the original node and the new node, and it will have the original node's parent (now grandparent) as it's parent
-        Node newParent = newOnLeft ? new Node(newLeaf, oldLeaf) : new Node(oldLeaf, newLeaf);
-        newParent.parent = grandparent;
-
-        if (grandparent == null) {
-            root = newParent; // this would occur when the root node is the only leaf, and it's being completely replaced
-        } else if (grandparent.left == oldLeaf) {
-            grandparent.left = newParent;
-        } else {
-            grandparent.right = newParent;
+    private void setOldParentToGrandparent(Node futureGrand, Node child, Node newParent) {
+        if (newParent == futureGrand) {
+            throw new IllegalStateException("Attempted to set parent as its own child");
         }
-        bubbleRecalc(newParent);
+        if (futureGrand == null) {
+            root = newParent; // this would occur when the root node is the only leaf, and it's being completely replaced
+        } else if (futureGrand.left == child) {
+            futureGrand.left = newParent;
+        } else {
+            futureGrand.right = newParent;
+        }
+
+        if (newParent != null) {
+            newParent.parent = futureGrand;
+        }
+        Node start = (newParent != null) ? newParent : futureGrand; // recalculate based on the leaf, if no leaf update parent weight
+        if (start != null) bubbleRecalc(start);
     }
 
     public void insert(int position, Piece pieceToInsert) {
@@ -264,6 +265,28 @@ public class PieceTree {
         insertFixup(insertedNode);
     }
 
+    private void addSiblingNode(Node oldNode, Node newNode, boolean newOnLeft) {
+        Node grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
+
+        Node newParent = newOnLeft ? new Node(newNode, oldNode) : new Node(oldNode, newNode);
+        setOldParentToGrandparent(grandparent, oldNode, newParent);
+    }
+    private void splitLeafNode(Node oldNode, Node newNode, int offset) {
+        Node grandparent = oldNode.parent;
+
+        Piece oldPiece = oldNode.piece;
+        int oldLength = oldPiece.getLength();
+
+        Piece leftPiece = new Piece(oldPiece.getSource(), oldPiece.getStart(), offset);
+        Piece rightPiece = new Piece(oldPiece.getSource(), oldPiece.getStart() + offset, oldLength - offset);
+        Node leftNode = new Node(leftPiece);
+        Node rightNode = new Node(rightPiece);
+
+        Node rightSubTree = new Node(newNode, rightNode);
+        Node newParent = new Node(leftNode, rightSubTree);
+        setOldParentToGrandparent(grandparent, oldNode, newParent);
+    }
+
     private Node insertRecursive(Node node, int position, Piece pieceToInsert) {
         if (node.isLeaf()) {
             Piece old = node.piece;
@@ -277,30 +300,14 @@ public class PieceTree {
 
             } else if (offset == oldLen) {
                 // new piece after current leaf
-                Node newLeaf = new Node(pieceToInsert);
-                addSiblingNode(node, newLeaf, false);
-                return newLeaf;
+                Node newNode = new Node(pieceToInsert);
+                addSiblingNode(node, newNode, false);
+                return newNode;
 
             } else {
-                // split existing leaf into left + right, and insert new piece in the middle
-                Piece leftPiece = new Piece(old.getSource(), old.getStart(), offset);
-                Piece rightPiece = new Piece(old.getSource(), old.getStart() + offset, oldLen - offset);
-
-                Node leftLeaf = new Node(leftPiece);
-                Node rightLeaf = new Node(rightPiece);
-                Node newLeaf = new Node(pieceToInsert);
-
-                Node rightSubTree = new Node(newLeaf, rightLeaf);
-                Node newParent = new Node(leftLeaf, rightSubTree);
-                if (node == root) {
-                    root = newParent;
-                    newParent.parent = null;
-                }
-                else {
-                    updateParentChild(node, newParent);
-                }
-                bubbleRecalc(newParent);
-                return newLeaf;
+                Node newNode = new Node(pieceToInsert);
+                splitLeafNode(node, newNode, offset);
+                return newNode;
             }
         }
 
