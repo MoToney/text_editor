@@ -26,7 +26,7 @@ public class PieceTree {
             this.left = left;
             this.right = right;
             this.parent = null;
-            this.color = Color.BLACK;
+            this.color = Color.RED;
 
             if (left != null) left.parent = this;
             if (right != null) right.parent = this;
@@ -57,26 +57,21 @@ public class PieceTree {
         Node parent() {
             return parent;
         }
-
         Node sibling() {
             if (parent() == null) return null;
             return (this == parent.left) ? parent.right : parent.left;
         }
-
         Node nearestNephew() {
             if (sibling() == null) return null;
             return (this == parent.left) ? sibling().left : sibling().right;
         }
-
         Node furthestNephew() {
             if (sibling() == null) return null;
             return (this == parent.left) ? sibling().right : sibling().left;
         }
-
         Node grandParent() {
             return (parent() != null) ? parent.parent : null;
         }
-
         Node uncle() {
             Node gp = grandParent();
             if (gp == null) return null;
@@ -92,13 +87,9 @@ public class PieceTree {
         this.lastInsertedNode = null;
     }
 
-    public PieceTree(Piece initial) {
-        if (initial != null) this.root = new Node(initial);
-    }
+    public PieceTree(Piece initial) {if (initial != null) this.root = new Node(initial);}
 
-    public int length() {
-        return (root != null) ? root.length : 0;
-    }
+    public int length() {return (root != null) ? root.length : 0;}
 
     private void collectText(Node node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
         if (node == null) {
@@ -159,23 +150,9 @@ public class PieceTree {
         if (x == null || x.right == null) return;
         Node y = x.right;
         x.right = y.left;
-
         if (y.left != null) y.left.parent = x;
-        y.parent = x.parent;
 
-        if (x.parent == null) {
-            root = y;
-        } else if (x.parent.left == x) {
-            x.parent.left = y;
-        } else {
-            x.parent.right = y;
-        }
-
-        y.left = x;
-        x.parent = y;
-
-        x.recalc();
-        y.recalc();
+        setOldParentToGrandparent(x.parent, x, y);
     }
 
     public void rotateRight(Node x) {
@@ -183,19 +160,8 @@ public class PieceTree {
         Node y = x.left;
         x.left = y.right;
         if (y.right != null) y.right.parent = x;
-        y.parent = x.parent;
-        if (x.parent == null) {
-            root = y;
-        } else if (x.parent.left == x) {
-            x.parent.left = y;
-        } else {
-            x.parent.right = y;
-        }
-        y.right = x;
-        x.parent = y;
 
-        x.recalc();
-        y.recalc();
+        setOldParentToGrandparent(x.parent, x, y);
     }
 
     private void bubbleRecalc(Node start) {
@@ -245,24 +211,6 @@ public class PieceTree {
         }
         Node start = (newParent != null) ? newParent : futureGrand; // recalculate based on the leaf, if no leaf update parent weight
         if (start != null) bubbleRecalc(start);
-    }
-
-    public void insert(int position, Piece pieceToInsert) {
-        if (pieceToInsert == null || pieceToInsert.getLength() == 0) return;
-
-        if (position < 0) position = 0;
-        int treeLength = (root != null) ? root.length : 0;
-        if (position > treeLength) position = treeLength;
-
-        if (root == null) {
-            root = new Node(pieceToInsert);
-            root.color = Color.BLACK;
-            return;
-        }
-
-        Node insertedNode = insertRecursive(root, position, pieceToInsert);
-
-        insertFixup(insertedNode);
     }
 
     private void addSiblingNode(Node oldNode, Node newNode, boolean newOnLeft) {
@@ -378,6 +326,24 @@ public class PieceTree {
         }
 
         if (root != null) root.color = Color.BLACK;
+    }
+
+    public void insert(int position, Piece pieceToInsert) {
+        if (pieceToInsert == null || pieceToInsert.getLength() == 0) return;
+
+        if (position < 0) position = 0;
+        int treeLength = (root != null) ? root.length : 0;
+        if (position > treeLength) position = treeLength;
+
+        if (root == null) {
+            root = new Node(pieceToInsert);
+            root.color = Color.BLACK;
+            return;
+        }
+
+        Node insertedNode = insertRecursive(root, position, pieceToInsert);
+
+        insertFixup(insertedNode);
     }
 
     private void removeFixup(Node problemNode) {
