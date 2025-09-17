@@ -61,9 +61,8 @@ public class PieceTable {
         return pieceTree.length();
     }
 
-
-
     public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
+
     private void rebuildLineCache() {
         List<Piece> pieces = pieceTree.toPieceList();
         lineCache.clear();
