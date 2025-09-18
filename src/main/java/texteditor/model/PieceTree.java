@@ -449,7 +449,7 @@ public class PieceTree {
                     }
                     sibling.color = problemNode.parent.color;
                     problemNode.parent.color = Color.BLACK;
-                    if (sibling.right != null) sibling.left.color = Color.BLACK;
+                    if (sibling.left != null) sibling.left.color = Color.BLACK;
                     rotateRight(problemNode.parent);
                     problemNode = root;
                 }
@@ -540,12 +540,6 @@ public class PieceTree {
             return node;
         }
         return removedNode;
-    }
-
-    private Node combine(Node left, Node right) {
-        if (left == null) return right;
-        if (right == null) return left;
-        return new Node(left, right);
     }
 
     public void remove(int position, int removeLength) {
