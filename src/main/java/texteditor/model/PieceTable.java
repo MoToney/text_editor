@@ -58,7 +58,7 @@ public class PieceTable {
     }
 
     public int getLength() {
-        return pieceTree.length();
+        return pieceTree.treeLength();
     }
 
     public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}

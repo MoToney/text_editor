@@ -3,109 +3,40 @@ package texteditor.model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PieceTree {
+public class PieceTree extends RBTree<Piece> {
 
-    private enum Color {RED, BLACK}
-
-    private static class Node {
-        Piece piece;
-        Node left, right, parent;
-        int length;
-        Color color;
-
-        Node(Piece piece) {
-            this.piece = piece;
-            this.left = this.right = this.parent = null;
-            this.color = Color.RED;
-
-            recalc();
-        }
-
-        Node(Node left, Node right) {
-            this.piece = null;
-            this.left = left;
-            this.right = right;
-            this.parent = null;
-            this.color = Color.BLACK;
-
-            if (left != null) left.parent = this;
-            if (right != null) right.parent = this;
-
-            recalc();
-        }
-
-        boolean isLeaf() {
-            return piece != null;
-        }
-
-        void recalc() {
-            if (isLeaf()) {
-                length = piece.getLength();
-            } else {
-                length = (left != null ? left.length : 0) + (right != null ? right.length : 0);
-            }
-        }
-
-        boolean isRed() {
-            return color == Color.RED;
-        }
-
-        boolean isBlack() {
-            return color == Color.BLACK;
-        }
-
-        Node parent() {
-            return parent;
-        }
-
-        Node sibling() {
-            if (parent() == null) return null;
-            return (this == parent.left) ? parent.right : parent.left;
-        }
-
-        Node nearestNephew() {
-            if (sibling() == null) return null;
-            return (this == parent.left) ? sibling().left : sibling().right;
-        }
-
-        Node furthestNephew() {
-            if (sibling() == null) return null;
-            return (this == parent.left) ? sibling().right : sibling().left;
-        }
-
-        Node grandParent() {
-            return (parent() != null) ? parent.parent : null;
-        }
-
-        Node uncle() {
-            Node gp = grandParent();
-            if (gp == null) return null;
-            return (parent == gp.left) ? gp.right : gp.left;
-        }
-    }
-
-    private Node root;
-    private Node lastInsertedNode;
-
-    public PieceTree() {
-        this.root = null;
-        this.lastInsertedNode = null;
-    }
+    public PieceTree() {super();}
 
     public PieceTree(Piece initial) {
-        if (initial != null) this.root = new Node(initial);
+        if (initial == null) return;
+        this.root = new Node<>(initial);
+        recompute(root);
+        this.root.color = Color.BLACK;
     }
 
-    public int length() {
-        return (root != null) ? root.length : 0;
+    @Override
+    protected void recompute(Node<Piece> node) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            node.length = (node.payload != null) ? node.payload.getLength() : 0;
+        } else {
+            int leftLen = (node.left != null) ? node.left.length : 0;
+            int rightLen = (node.right != null) ? node.right.length : 0;
+            node.length = leftLen + rightLen;
+        }
     }
 
-    private void collectText(Node node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
+    @Override
+    protected int payloadLength(Piece piece) {
+        return (piece != null) ? piece.getLength() : 0;
+    }
+
+    private void collectText(Node<Piece> node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
         if (node == null) {
             return;
         }
         if (node.isLeaf()) {
-            String text = node.piece.getText(originalBuffer, addBuffer);
+            String text = node.payload.getText(originalBuffer, addBuffer);
             stringBuilder.append(text);
         } else {
             collectText(node.left, stringBuilder, originalBuffer, addBuffer);
@@ -114,14 +45,14 @@ public class PieceTree {
     }
 
     public String getText(String originalBuffer, StringBuilder addBuffer) {
-        StringBuilder sb = new StringBuilder(length());
+        StringBuilder sb = new StringBuilder(treeLength());
         collectText(root, sb, originalBuffer, addBuffer);
         return sb.toString();
     }
 
-    private void collectPieces(Node node, List<Piece> out) {
+    private void collectPieces(Node<Piece> node, List<Piece> out) {
         if (node == null) return;
-        if (node.isLeaf()) out.add(node.piece);
+        if (node.isLeaf()) out.add(node.payload);
         else {
             collectPieces(node.left, out);
             collectPieces(node.right, out);
@@ -134,9 +65,9 @@ public class PieceTree {
         return out;
     }
 
-    private PieceTable.TextLocation findLocationRecursive(Node node, int position) {
+    private PieceTable.TextLocation findLocationRecursive(Node<Piece> node, int position) {
         if (node.isLeaf()) {
-            return new PieceTable.TextLocation(node.piece, position, -1);
+            return new PieceTable.TextLocation(node.payload, position, -1);
         }
 
         int leftLen = (node.left != null) ? node.left.length : 0;
@@ -155,174 +86,71 @@ public class PieceTree {
         return findLocationRecursive(root, position);
     }
 
-    public void rotateLeft(Node x) {
-        if (x == null || x.right == null) return;
-        Node y = x.right;
-
-        // 1) move y.left to x.right
-        x.right = y.left;
-        if (y.left != null) y.left.parent = x;
-
-        // 2) attach y to x.parent
-        Node xParent = x.parent;
-        y.parent = xParent;
-        if (xParent == null) root = y;
-        else if (xParent.left == x) xParent.left = y;
-        else xParent.right = y;
-
-        // 3) make x left child of y
-        y.left = x;
-        x.parent = y;
-
-        // 4) recalc lengths bottom-up
-        x.recalc();
-        y.recalc();
-        bubbleRecalc(y.parent);
-    }
-
-    public void rotateRight(Node x) {
-        if (x == null || x.left == null) return;
-        Node y = x.left;
-
-        x.left = y.right;
-        if (y.right != null) y.right.parent = x;
-
-        Node xParent = x.parent;
-        y.parent = xParent;
-        if (xParent == null) root = y;
-        else if (xParent.left == x) xParent.left = y;
-        else xParent.right = y;
-
-        y.right = x;
-        x.parent = y;
-
-        x.recalc();
-        y.recalc();
-        bubbleRecalc(y.parent);
-    }
-
-    private void bubbleRecalc(Node start) {
-        Node cur = start;
-        while (cur != null) {
-            cur.recalc();
-            cur = cur.parent;
-        }
-    }
-
-    private void updateParentChild(Node oldChild, Node newChild) {
-        Node parent = (oldChild != null) ? oldChild.parent : null;
-
-        if (newChild == parent) {
-            throw new IllegalStateException("Attempted to set parent as its own child");
-        }
-
-        if (parent == null) {
-            root = newChild; // this would occur when the root node is the only leaf, and it's being completely replaced
-        } else if (parent.left == oldChild) {
-            parent.left = newChild;
-        } else {
-            parent.right = newChild;
-        }
-        if (newChild != null) {
-            newChild.parent = parent;
-        }
-
-        Node start = (newChild != null) ? newChild : parent; // recalculate based on the leaf, if no leaf update parent weight
-        if (start != null) bubbleRecalc(start);
-    }
-
-    private void setOldParentToGrandparent(Node futureGrand, Node child, Node newParent) {
-        if (newParent == futureGrand) {
-            throw new IllegalStateException("Attempted to set parent as its own child");
-        }
-        if (futureGrand == null) {
-            root = newParent; // this would occur when the root node is the only leaf, and it's being completely replaced
-        } else if (futureGrand.left == child) {
-            futureGrand.left = newParent;
-        } else {
-            futureGrand.right = newParent;
-        }
-
-        if (newParent != null) {
-            newParent.parent = futureGrand;
-        }
-        Node start = (newParent != null) ? newParent : futureGrand; // recalculate based on the leaf, if no leaf update parent weight
-        if (start != null) bubbleRecalc(start);
-    }
-
-    public void insert(int position, Piece pieceToInsert) {
-        if (pieceToInsert == null || pieceToInsert.getLength() == 0) return;
-
-        if (position < 0) position = 0;
-        int treeLength = (root != null) ? root.length : 0;
-        if (position > treeLength) position = treeLength;
-
-        if (root == null) {
-            root = new Node(pieceToInsert);
-            root.color = Color.BLACK;
-            return;
-        }
-
-        Node insertedNode = insertRecursive(root, position, pieceToInsert);
-
-        insertFixup(insertedNode);
-    }
-
-    private void addSiblingNode(Node oldNode, Node newNode, boolean newOnLeft) {
-        Node grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
+    private void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
+        Node<Piece> grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
 
         newNode.color = Color.RED;
         Color newParentColor = oldNode.color;
         oldNode.color = Color.RED;
 
 
-        Node newParent = newOnLeft ? new Node(newNode, oldNode) : new Node(oldNode, newNode);
+        Node<Piece> newParent = newOnLeft ? new Node<>(newNode, oldNode) : new Node<>(oldNode, newNode);
+        recompute(newParent);
         newParent.color = newParentColor;
-        setOldParentToGrandparent(grandparent, oldNode, newParent);
+        replaceChild(grandparent, oldNode, newParent);
     }
-    private void splitLeafNode(Node oldNode, Node newNode, int offset) {
-        Node grandparent = oldNode.parent;
 
-        Piece oldPiece = oldNode.piece;
+    private void splitLeafNode(Node<Piece> oldNode, Node<Piece> newNode, int offset) {
+        Node<Piece> grandparent = oldNode.parent;
+
+        Piece oldPiece = oldNode.payload;
         int oldLength = oldPiece.getLength();
 
         Piece leftPiece = new Piece(oldPiece.getSource(), oldPiece.getStart(), offset);
         Piece rightPiece = new Piece(oldPiece.getSource(), oldPiece.getStart() + offset, oldLength - offset);
 
-        Node leftNode = new Node(leftPiece);
-        Node rightNode = new Node(rightPiece);
+        Node<Piece>leftNode = new Node<>(leftPiece);
+        recompute(leftNode);
+        Node<Piece> rightNode = new Node<>(rightPiece);
+        recompute(rightNode);
 
         leftNode.color = Color.RED;
         rightNode.color = Color.RED;
         newNode.color = Color.RED;
 
-        Node rightSubTree = new Node(newNode, rightNode);
+        Node<Piece> rightSubTree = new Node<>(newNode, rightNode);
+        recompute(rightSubTree);
         rightSubTree.color = Color.RED;
 
-        Node newParent = new Node(leftNode, rightSubTree);
+        Node<Piece> newParent = new Node<>(leftNode, rightSubTree);
+        recompute(newParent);
         newParent.color = oldNode.color;
-        setOldParentToGrandparent(grandparent, oldNode, newParent);
+        replaceChild(grandparent, oldNode, newParent);
     }
 
-    private Node insertRecursive(Node node, int position, Piece pieceToInsert) {
+    @Override
+    protected Node<Piece> insertRecursive(Node<Piece> node, int position, Piece pieceToInsert) {
         if (node.isLeaf()) {
-            Piece old = node.piece;
+            Piece old = node.payload;
             int oldLen = old.getLength();
             int offset = Math.max(0, Math.min(position, oldLen));
 
             if (offset == 0) {
-                Node newLeaf = new Node(pieceToInsert);
+                Node<Piece> newLeaf = new Node<>(pieceToInsert);
+                recompute(newLeaf);
                 addSiblingNode(node, newLeaf, true);
                 return newLeaf;
 
             } else if (offset == oldLen) {
                 // new piece after current leaf
-                Node newNode = new Node(pieceToInsert);
+                Node<Piece> newNode = new Node<>(pieceToInsert);
+                recompute(newNode);
                 addSiblingNode(node, newNode, false);
                 return newNode;
 
             } else {
-                Node newNode = new Node(pieceToInsert);
+                Node<Piece> newNode = new Node<>(pieceToInsert);
+                recompute(newNode);
                 splitLeafNode(node, newNode, offset);
                 return newNode;
             }
@@ -337,132 +165,12 @@ public class PieceTree {
         }
     }
 
-    private void insertFixup(Node node) {
-        // Continue until we reach the root or parent is black
-        while (node != null && node.parent != null && node.parent.isRed()) {
-            Node parent = node.parent;
-            Node grandparent = parent.parent;
-
-            if (grandparent == null) break;
-
-            if (parent == grandparent.left) {
-                // Parent is a left child
-                Node uncle = grandparent.right;
-
-                if (uncle != null && uncle.isRed()) {
-                    // Case 1: Uncle is red - just recolor
-                    parent.color = Color.BLACK;
-                    uncle.color = Color.BLACK;
-                    grandparent.color = Color.RED;
-                    node = grandparent;  // Move up and check again
-                } else {
-                    // Uncle is black - we need rotations
-                    if (node == parent.right) {
-                        // Case 2: Node is right child - rotate left first
-                        node = parent;
-                        rotateLeft(node);
-                    }
-                    parent = node.parent;
-                    if (parent != null) parent.color = Color.BLACK;
-                    if (parent != null && parent.parent != null) {
-                        parent.parent.color = Color.RED;
-                        rotateRight(parent.parent);
-                    }
-                }
-            } else {
-                // Parent is a right child - mirror image of above
-                Node uncle = grandparent.left;
-
-                if (uncle != null && uncle.isRed()) {
-                    parent.color = Color.BLACK;
-                    uncle.color = Color.BLACK;
-                    grandparent.color = Color.RED;
-                    node = grandparent;
-                } else {
-                    if (node == parent.left) {
-                        node = parent;
-                        rotateRight(node);
-
-                    }
-                    parent = node.parent;
-                    if (parent != null) parent.color = Color.BLACK;
-                    if (parent != null && parent.parent != null) {
-                        parent.parent.color = Color.RED;
-                        rotateLeft(parent.parent);
-                    }
-                }
-            }
-        }
-
-        if (root != null) root.color = Color.BLACK;
-    }
-
-    private void removeFixup(Node problemNode) {
-        while (problemNode != root && problemNode.isBlack()) {
-            if (problemNode == problemNode.parent.left) {
-                Node sibling = problemNode.parent.right;
-
-                if (sibling.isRed()) {
-                    sibling.color = problemNode.parent.color;
-                    problemNode.parent.color = Color.RED;
-                    rotateLeft(problemNode.parent);
-                    sibling = problemNode.parent.right;
-                }
-                if ((sibling.left == null || sibling.left.isBlack()) && (sibling.right == null || sibling.right.isBlack())) {
-                    sibling.color = Color.RED;
-                    problemNode = problemNode.parent;
-                } else {
-                    if (sibling.right == null || sibling.right.isBlack()) {
-                        if (sibling.left != null) {
-                            sibling.left.color = Color.BLACK;
-                        }
-                        sibling.color = Color.RED;
-                        rotateRight(sibling);
-                        sibling = problemNode.parent.right;
-                    }
-                    sibling.color = problemNode.parent.color;
-                    problemNode.parent.color = Color.BLACK;
-                    if (sibling.right != null) sibling.right.color = Color.BLACK;
-                    rotateLeft(problemNode.parent);
-                    problemNode = root;
-                }
-            } else {
-                Node sibling = problemNode.parent.left;
-
-                if (sibling.isRed()) {
-                    sibling.color = problemNode.parent.color;
-                    problemNode.parent.color = Color.RED;
-                    rotateRight(problemNode.parent);
-                    sibling = problemNode.parent.left;
-                }
-
-                if ((sibling.left == null || sibling.left.isBlack()) && (sibling.right == null || sibling.right.isBlack())) {
-                    sibling.color = Color.RED;
-                    problemNode = problemNode.parent;
-
-                } else {
-                    if (sibling.left == null || sibling.left.isBlack()) {
-                        if (sibling.right != null) sibling.right.color = Color.BLACK;
-                        sibling.color = Color.RED;
-                        rotateLeft(sibling);
-                        sibling = problemNode.parent.left;
-                    }
-                    sibling.color = problemNode.parent.color;
-                    problemNode.parent.color = Color.BLACK;
-                    if (sibling.left != null) sibling.left.color = Color.BLACK;
-                    rotateRight(problemNode.parent);
-                    problemNode = root;
-                }
-            }
-        }
-        problemNode.color = Color.BLACK;
-    }
-
-    private Node removeRecursive(Node node, int position, int removeLength) {
+    @Override
+    protected Node<Piece> removeRecursive(Node<Piece> node, int position, int removeLength) {
         if (node == null || removeLength <= 0) return node;
 
         if (node.isLeaf()) {
-            int pieceLen = node.piece.getLength();
+            int pieceLen = node.payload.getLength();
             int start = Math.max(0, Math.min(position, pieceLen)); // start point of the deletion
             int end = Math.max(0, Math.min(position + removeLength, pieceLen)); // end point of the deletion
             if (start >= end) return node; // nothing to remove in this leaf
@@ -470,44 +178,51 @@ public class PieceTree {
             int leftLen = start; // length of the left portion of the string after deletion
             int rightLen = pieceLen - end; // length of the right portion of the string after deletion
 
-            if (leftLen > 0 && rightLen > 0) {
-                Piece leftPiece = new Piece(node.piece.getSource(), node.piece.getStart(), leftLen);
-                Piece rightPiece = new Piece(node.piece.getSource(), node.piece.getStart() + end, rightLen);
+            Node<Piece> grandparent = node.parent;
 
-                Node leftNode = new Node(leftPiece);
-                Node rightNode = new Node(rightPiece);
-                Node newParent = new Node(leftNode, rightNode);
+            if (leftLen > 0 && rightLen > 0) {
+                Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
+                Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
+
+                Node<Piece> leftNode = new Node<>(leftPiece);
+                recompute(leftNode);
+                Node<Piece> rightNode = new Node<>(rightPiece);
+                recompute(rightNode);
+                Node<Piece> newParent = new Node<>(leftNode, rightNode);
+                recompute(newParent);
 
                 newParent.color = node.color;
 
-                updateParentChild(node, newParent);
+                replaceChild(grandparent,node, newParent);
                 return null;
 
             } else if (leftLen > 0) {
-                Piece leftPiece = new Piece(node.piece.getSource(), node.piece.getStart(), leftLen);
-                Node leftNode = new Node(leftPiece);
+                Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
+                Node<Piece> leftNode = new Node<>(leftPiece);
+                recompute(leftNode);
 
                 leftNode.color = node.color;
 
-                updateParentChild(node, leftNode);
+                replaceChild(grandparent, node, leftNode);
                 return null;
 
             } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(node.piece.getSource(), node.piece.getStart() + end, rightLen);
-                Node rightNode = new Node(rightPiece);
+                Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
+                Node<Piece> rightNode = new Node<>(rightPiece);
+                recompute(rightNode);
 
                 rightNode.color = node.color;
 
-                updateParentChild(node, rightNode);
+                replaceChild(grandparent, node, rightNode);
                 return null;
             } else {
-                updateParentChild(node, null);
+                replaceChild(grandparent, node, null);
                 return node;
             }
         }
 
         int leftSubLen = (node.left != null) ? node.left.length : 0;
-        Node removedNode = null;
+        Node<Piece> removedNode = null;
 
         if (position + removeLength <= leftSubLen) {
             // deletion entirely in left subtree
@@ -518,75 +233,31 @@ public class PieceTree {
         } else {
 
             int removeFromLeft = leftSubLen - position;
-            Node leftRemoved = removeRecursive(node.left, position, removeFromLeft);
+            Node<Piece> leftRemoved = removeRecursive(node.left, position, removeFromLeft);
             int remaining = removeLength - removeFromLeft;
-            Node rightRemoved = removeRecursive(node.right, 0, remaining);
+            Node<Piece> rightRemoved = removeRecursive(node.right, 0, remaining);
 
             removedNode = (leftRemoved != null) ? leftRemoved : rightRemoved; // in this case we'll delete the left if there was a spanning deletion
         }
 
-        node.recalc(); // recalculate the node's length since children may have changed
+        recompute(node); // recalculate the node's length since children may have changed
+        Node<Piece> grandparent = node.parent;
 
         if (node.left == null && node.right == null) {
-            updateParentChild(node, null);
+            replaceChild(grandparent, node, null);
             return node;
         } else if (node.left == null) {
             node.right.color = node.color;
-            updateParentChild(node, node.right);
+            replaceChild(grandparent, node, node.right);
             return node;
         } else if (node.right == null) {
             node.left.color = node.color;
-            updateParentChild(node, node.left);
+            replaceChild(grandparent, node, node.left);
             return node;
         }
         return removedNode;
     }
 
-    public void remove(int position, int removeLength) {
-        if (removeLength <= 0 || root == null) return;
-
-        int treeLength = root.length;
-        if (position < 0) position = 0;
-        if (position >= treeLength) return; // nothing to remove
-        if (position + removeLength > treeLength) {
-            removeLength = treeLength - position; // trim to valid range
-        }
-
-        Node removedNode = removeRecursive(root, position, removeLength);
-        if (removedNode != null && removedNode.isBlack()) {
-            Node replacementNode = findReplacementForRemovedNode(removedNode);
-            if (replacementNode != null) {
-                removeFixup(replacementNode);
-            }
-        }
-
-    }
-
-    private Node findReplacementForRemovedNode(Node removedNode) {
-        // The removed node's parent should now point to whatever replaced it
-        Node parent = removedNode.parent;
-        if (parent == null) {
-            // Root was removed, new root (if any) is the replacement
-            return root;
-        }
-
-        // Find what's now in the removed node's position
-        if (parent.left == null && parent.right == null) {
-            // Parent became a leaf, so nothing replaced the removed node
-            // The parent itself needs to be treated as having a "null child" problem
-            return parent;
-        } else if (parent.left == null) {
-            // Left child was removed, right child might be the replacement
-            return parent.right;
-        } else if (parent.right == null) {
-            // Right child was removed, left child might be the replacement
-            return parent.left;
-        }
-
-        // Both children still exist, so an internal restructuring happened
-        // In this case, no single node replacement occurred
-        return null;
-    }
 
     public boolean isValidRedBlack() {
         if (root != null && root.isRed()) return false;  // Root must be black
