@@ -12,30 +12,32 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class PieceTreeTest {
 
-    // ----------------------
-    // Reflection helpers
-    // ----------------------
+    // use this instead of PieceTree.class.getDeclaredField("root")
+    private Field findFieldInHierarchy(Class<?> cls, String fieldName) {
+        Class<?> cur = cls;
+        while (cur != null) {
+            try {
+                Field f = cur.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                return f;
+            } catch (NoSuchFieldException e) {
+                cur = cur.getSuperclass();
+            }
+        }
+        return null;
+    }
+
     private Object getRoot(PieceTree tree) throws Exception {
-        Field f = PieceTree.class.getDeclaredField("root");
-        f.setAccessible(true);
+        Field f = findFieldInHierarchy(tree.getClass(), "root");
+        if (f == null) throw new NoSuchFieldException("root");
         return f.get(tree);
     }
 
-    private boolean isLeaf(Object node) throws Exception {
-        Method m = node.getClass().getDeclaredMethod("isLeaf");
-        m.setAccessible(true);
-        return (Boolean) m.invoke(node);
-    }
-
-    private boolean isRed(Object node) throws Exception {
-        Method m = node.getClass().getDeclaredMethod("isRed");
-        m.setAccessible(true);
-        return (Boolean) m.invoke(node);
-    }
-
+    // generalized child getter (left/right/parent) - Node class is an inner class, so use node.getClass()
     private Object getChild(Object node, String childField) throws Exception {
-        Field f = node.getClass().getDeclaredField(childField);
-        f.setAccessible(true);
+        if (node == null) return null;
+        Field f = findFieldInHierarchy(node.getClass(), childField);
+        if (f == null) throw new NoSuchFieldException(childField + " on " + node.getClass());
         return f.get(node);
     }
 
@@ -43,16 +45,77 @@ public class PieceTreeTest {
         return getChild(node, "parent");
     }
 
+    // flexible payload accessor: tries "piece" then "payload"
+    private Object getPayload(Object node) throws Exception {
+        if (node == null) return null;
+        Field f = findFieldInHierarchy(node.getClass(), "piece");
+        if (f == null) f = findFieldInHierarchy(node.getClass(), "payload");
+        if (f == null) throw new NoSuchFieldException("piece|payload on " + node.getClass());
+        f.setAccessible(true);
+        return f.get(node);
+    }
+
+    // isLeaf reflection: use method if present, otherwise infer by payload != null
+    private boolean isLeaf(Object node) throws Exception {
+        if (node == null) return false;
+        try {
+            Method m = node.getClass().getDeclaredMethod("isLeaf");
+            m.setAccessible(true);
+            return (Boolean) m.invoke(node);
+        } catch (NoSuchMethodException e) {
+            // fallback: consider leaf if payload/piece != null
+            Object payload = getPayload(node);
+            return payload != null;
+        }
+    }
+
+    // color check - prefer method, fallback to field "color"
+    private boolean isRed(Object node) throws Exception {
+        if (node == null) return false;
+        try {
+            Method m = node.getClass().getDeclaredMethod("isRed");
+            m.setAccessible(true);
+            return (Boolean) m.invoke(node);
+        } catch (NoSuchMethodException e) {
+            Field f = findFieldInHierarchy(node.getClass(), "color");
+            if (f == null) throw new NoSuchFieldException("color on " + node.getClass());
+            f.setAccessible(true);
+            Object val = f.get(node);
+            return val != null && val.toString().equals("RED");
+        }
+    }
+
     private int getNodeLength(Object node) throws Exception {
-        Field f = node.getClass().getDeclaredField("length");
+        Field f = findFieldInHierarchy(node.getClass(), "length");
+        if (f == null) throw new NoSuchFieldException("length");
         f.setAccessible(true);
         return (Integer) f.get(node);
     }
 
     private Piece getPiece(Object node) throws Exception {
-        Field f = node.getClass().getDeclaredField("piece");
+        if (node == null) return null;
+
+        // try "piece"
+        Field f = findFieldInHierarchy(node.getClass(), "piece");
+        if (f == null) {
+            // fallback to "payload"
+            f = findFieldInHierarchy(node.getClass(), "payload");
+        }
+        if (f == null) {
+            // helpful message so you know what's actually on the Node class
+            StringBuilder sb = new StringBuilder();
+            sb.append("No field named 'piece' or 'payload' found on class ").append(node.getClass()).append(". Fields: ");
+            for (Field ff : node.getClass().getDeclaredFields()) sb.append(ff.getName()).append(" ");
+            throw new NoSuchFieldException(sb.toString());
+        }
         f.setAccessible(true);
-        return (Piece) f.get(node);
+        Object val = f.get(node);
+        if (val == null) return null;
+        if (!(val instanceof Piece)) {
+            // If your payload type changed or is generic-wrapped, convert/cast safely
+            throw new ClassCastException("Expected Piece in field but found: " + val.getClass());
+        }
+        return (Piece) val;
     }
 
     // Recursively compute total length by walking children (independent of node.length)
@@ -72,7 +135,6 @@ public class PieceTreeTest {
         if (isLeaf(node)) return 1;
         return countLeaves(getChild(node, "left")) + countLeaves(getChild(node, "right"));
     }
-
     // Ensure every internal node's stored length equals sum of children's lengths
     private void assertLengthConsistency(Object node) throws Exception {
         if (node == null) return;
@@ -273,7 +335,7 @@ public class PieceTreeTest {
 
         for (int i = 0; i < N; i++) {
             int pieceLen = 1;
-            int curLen = tree.length();          // public length() on PieceTree
+            int curLen = tree.treeLength();          // public length() on PieceTree
             int pos;
             switch (i % 4) {
                 case 0: pos = 0; break;          // insert at start

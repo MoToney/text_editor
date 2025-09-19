@@ -1,24 +1,34 @@
 package texteditor.model;
 
 public abstract class RBTree<T> {
-    private enum Color {RED, BLACK}
+    enum Color {RED, BLACK}
 
     protected static class Node<T> {
         T payload;
         Node<T> left, right, parent;
-        Color color = Color.RED;
         int length;
+        Color color;
 
         public Node(T payload) {
             this.payload = payload;
+            this.left = this.right = this.parent = null;
+            this.color = Color.RED;
+
         }
 
         public Node(Node<T> left, Node<T> right) {
+            this.payload = null;
             this.left = left;
             this.right = right;
+            this.parent = null;
             if (left != null) left.parent = this;
             if (right != null) right.parent = this;
+            this.color = Color.BLACK;
 
+        }
+
+        boolean isLeaf() {
+            return payload != null;
         }
 
         boolean isRed() {
@@ -44,7 +54,7 @@ public abstract class RBTree<T> {
         }
     }
 
-    protected int length() {
+    protected int treeLength() {
         return (root != null) ? root.length : 0;
     }
 
@@ -178,17 +188,18 @@ public abstract class RBTree<T> {
         if (position > treeLength) position = treeLength;
 
         if (root == null) {
-            root = new Node(payload);
+            root = new Node<>(payload);
             root.color = Color.BLACK;
+            recompute(root);
             return;
         }
 
-        Node insertedNode = insertRecursive(root, position, payload);
+        Node<T> insertedNode = insertRecursive(root, position, payload);
 
         insertFixup(insertedNode);
     }
 
-    protected abstract Node<T> removeRecursive(Node root, int position, int removeLength);
+    protected abstract Node<T> removeRecursive(Node<T> root, int position, int removeLength);
 
     private Node<T> findNodeForFixup(Node<T> removedNode) {
         // The removed node's parent should now point to whatever replaced it
@@ -209,7 +220,6 @@ public abstract class RBTree<T> {
             // Right child was removed, left child might be the replacement
             return parent.left;
         }
-
         // Both children still exist, so an internal restructuring happened
         // In this case, no single node replacement occurred
         return null;
@@ -293,7 +303,9 @@ public abstract class RBTree<T> {
         Node<T> removedLeafNode = removeRecursive(root, position, removeLength);
         if (removedLeafNode != null && removedLeafNode.isBlack()) {
             Node<T> problemNode = findNodeForFixup(removedLeafNode);
-            removeFixup(problemNode);
+            if (problemNode != null) {
+                removeFixup(problemNode);
+            }
         }
     }
 }
