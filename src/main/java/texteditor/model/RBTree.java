@@ -42,6 +42,18 @@ public abstract class RBTree<T> {
 
     protected Node<T> root;
 
+    protected Node<T> createLeafNode(T payload) {
+        Node<T> n = new Node<>(payload);
+        recompute(n);
+        return n;
+    }
+    protected Node<T> createInternalNode(Node<T> left, Node<T> right) {
+        Node<T> n = new Node<>(left, right);
+        recompute(n);
+        return n;
+    }
+
+
     protected abstract void recompute(Node<T> node);
 
     protected abstract int payloadLength(T payload);
