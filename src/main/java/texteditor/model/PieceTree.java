@@ -9,14 +9,15 @@ public class PieceTree extends RBTree<Piece> {
 
     public PieceTree(Piece initial) {
         if (initial == null) return;
-        this.root = new Node<>(initial);
-        recompute(root);
+        this.root = createLeafNode(initial);
         this.root.color = Color.BLACK;
     }
 
     @Override
     protected void recompute(Node<Piece> node) {
         if (node == null) return;
+
+
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
         } else {
@@ -94,8 +95,7 @@ public class PieceTree extends RBTree<Piece> {
         oldNode.color = Color.RED;
 
 
-        Node<Piece> newParent = newOnLeft ? new Node<>(newNode, oldNode) : new Node<>(oldNode, newNode);
-        recompute(newParent);
+        Node<Piece> newParent = newOnLeft ? createInternalNode(newNode, oldNode) : createInternalNode(oldNode, newNode);
         newParent.color = newParentColor;
         replaceChild(grandparent, oldNode, newParent);
     }
@@ -109,21 +109,17 @@ public class PieceTree extends RBTree<Piece> {
         Piece leftPiece = new Piece(oldPiece.getSource(), oldPiece.getStart(), offset);
         Piece rightPiece = new Piece(oldPiece.getSource(), oldPiece.getStart() + offset, oldLength - offset);
 
-        Node<Piece>leftNode = new Node<>(leftPiece);
-        recompute(leftNode);
-        Node<Piece> rightNode = new Node<>(rightPiece);
-        recompute(rightNode);
+        Node<Piece>leftNode = createLeafNode(leftPiece);
+        Node<Piece> rightNode = createLeafNode(rightPiece);
 
         leftNode.color = Color.RED;
         rightNode.color = Color.RED;
         newNode.color = Color.RED;
 
-        Node<Piece> rightSubTree = new Node<>(newNode, rightNode);
-        recompute(rightSubTree);
+        Node<Piece> rightSubTree = createInternalNode(newNode, rightNode);
         rightSubTree.color = Color.RED;
 
-        Node<Piece> newParent = new Node<>(leftNode, rightSubTree);
-        recompute(newParent);
+        Node<Piece> newParent = createInternalNode(leftNode, rightSubTree);
         newParent.color = oldNode.color;
         replaceChild(grandparent, oldNode, newParent);
     }
@@ -136,21 +132,18 @@ public class PieceTree extends RBTree<Piece> {
             int offset = Math.max(0, Math.min(position, oldLen));
 
             if (offset == 0) {
-                Node<Piece> newLeaf = new Node<>(pieceToInsert);
-                recompute(newLeaf);
+                Node<Piece> newLeaf = createLeafNode(pieceToInsert);
                 addSiblingNode(node, newLeaf, true);
                 return newLeaf;
 
             } else if (offset == oldLen) {
                 // new piece after current leaf
-                Node<Piece> newNode = new Node<>(pieceToInsert);
-                recompute(newNode);
+                Node<Piece> newNode = createLeafNode(pieceToInsert);
                 addSiblingNode(node, newNode, false);
                 return newNode;
 
             } else {
-                Node<Piece> newNode = new Node<>(pieceToInsert);
-                recompute(newNode);
+                Node<Piece> newNode = createLeafNode(pieceToInsert);
                 splitLeafNode(node, newNode, offset);
                 return newNode;
             }
@@ -184,12 +177,9 @@ public class PieceTree extends RBTree<Piece> {
                 Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
                 Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
 
-                Node<Piece> leftNode = new Node<>(leftPiece);
-                recompute(leftNode);
-                Node<Piece> rightNode = new Node<>(rightPiece);
-                recompute(rightNode);
-                Node<Piece> newParent = new Node<>(leftNode, rightNode);
-                recompute(newParent);
+                Node<Piece> leftNode = createLeafNode(leftPiece);
+                Node<Piece> rightNode = createLeafNode(rightPiece);
+                Node<Piece> newParent = createInternalNode(leftNode, rightNode);
 
                 newParent.color = node.color;
 
@@ -198,7 +188,7 @@ public class PieceTree extends RBTree<Piece> {
 
             } else if (leftLen > 0) {
                 Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
-                Node<Piece> leftNode = new Node<>(leftPiece);
+                Node<Piece> leftNode = createLeafNode(leftPiece);
                 recompute(leftNode);
 
                 leftNode.color = node.color;
@@ -208,7 +198,7 @@ public class PieceTree extends RBTree<Piece> {
 
             } else if (rightLen > 0) {
                 Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
-                Node<Piece> rightNode = new Node<>(rightPiece);
+                Node<Piece> rightNode = createLeafNode(rightPiece);
                 recompute(rightNode);
 
                 rightNode.color = node.color;
