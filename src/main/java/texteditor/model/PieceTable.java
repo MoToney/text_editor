@@ -4,16 +4,14 @@ import java.util.*;
 
 public class PieceTable {
 
-    private final String originalBuffer;
-    private final StringBuilder addBuffer;
+    private final TextBuffer textBuffer;
     // private final List<Piece> pieces;
     private final PieceTree pieceTree;
     private final List<Line> lineCache;
     private int totalLength;
 
     public PieceTable(String originalText) {
-        this.originalBuffer = originalText;
-        this.addBuffer = new StringBuilder();
+        this.textBuffer = new TextBuffer(originalText);
         // this.pieces = new ArrayList<>();
         this.lineCache = new ArrayList<>();
         this.pieceTree = new PieceTree();
@@ -31,8 +29,8 @@ public class PieceTable {
         if (text == null || text.isEmpty()) return;
 
         int textLength = text.length();
-        addBuffer.append(text);
-        Piece newPiece = new Piece(Piece.BufferType.ADD, addBuffer.length() - textLength, textLength);
+        textBuffer.append(text);
+        Piece newPiece = new Piece(Piece.BufferType.ADD, textBuffer.addBufferLength() - textLength, textLength);
 
         pieceTree.insert(position, newPiece);
         totalLength += text.length();
@@ -54,7 +52,7 @@ public class PieceTable {
     }
 
     public String getText() {
-        return pieceTree.getText(originalBuffer, addBuffer);
+        return pieceTree.getText(textBuffer);
     }
 
     public int getLength() {
@@ -77,7 +75,7 @@ public class PieceTable {
 
         for (int pieceIndex = 0; pieceIndex < pieces.size(); pieceIndex++) {
             Piece piece = pieces.get(pieceIndex);
-            List<Integer> lineStarts = piece.getLineStarts(originalBuffer, addBuffer);
+            List<Integer> lineStarts = piece.getLineStarts(textBuffer);
 
             if (lineStarts.size() <= 1) {
                 currentLineLength += piece.getLength();
@@ -136,7 +134,7 @@ public class PieceTable {
 
         while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
             Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.getSource() == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+            String bufferContent = (p.getSource() == Piece.BufferType.ORIGINAL) ? textBuffer.getOriginalBuffer() : textBuffer.getAddBuffer();
             int charsToRead = Math.min(remainingLength, p.getLength() - offsetInPiece);
 
             lineBuilder.append(bufferContent, p.getStart() + offsetInPiece, p.getStart() + offsetInPiece + charsToRead);

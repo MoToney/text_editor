@@ -32,22 +32,22 @@ public class PieceTree extends RBTree<Piece> {
         return (piece != null) ? piece.getLength() : 0;
     }
 
-    private void collectText(Node<Piece> node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
+    private void collectText(Node<Piece> node, StringBuilder stringBuilder, TextBuffer textBuffer) {
         if (node == null) {
             return;
         }
         if (node.isLeaf()) {
-            String text = node.payload.getText(originalBuffer, addBuffer);
+            String text = node.payload.getText(textBuffer);
             stringBuilder.append(text);
         } else {
-            collectText(node.left, stringBuilder, originalBuffer, addBuffer);
-            collectText(node.right, stringBuilder, originalBuffer, addBuffer);
+            collectText(node.left, stringBuilder, textBuffer);
+            collectText(node.right, stringBuilder, textBuffer);
         }
     }
 
-    public String getText(String originalBuffer, StringBuilder addBuffer) {
+    public String getText(TextBuffer textBuffer) {
         StringBuilder sb = new StringBuilder(treeLength());
-        collectText(root, sb, originalBuffer, addBuffer);
+        collectText(root, sb, textBuffer);
         return sb.toString();
     }
 
