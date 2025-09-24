@@ -5,12 +5,32 @@ import java.util.List;
 
 public class PieceTree extends RBTree<Piece> {
 
+    protected static class PieceNode extends Node<Piece> {
+        int newlineCount;
+        PieceNode(Piece payload) { super(payload); }
+        PieceNode(Node<Piece> left, Node<Piece> right) {super(left, right);}
+    }
+
     public PieceTree() {super();}
 
     public PieceTree(Piece initial) {
         if (initial == null) return;
         this.root = createLeafNode(initial);
         this.root.color = Color.BLACK;
+    }
+
+    @Override
+    protected Node<Piece> createLeafNode(Piece payload) {
+        PieceNode node = new PieceNode(payload);
+        recompute(node);
+        return node;
+    }
+
+    @Override
+    protected Node<Piece> createInternalNode(Node<Piece> left, Node<Piece> right) {
+        PieceNode node = new PieceNode(left, right);
+        recompute(node);
+        return node;
     }
 
     @Override
@@ -32,22 +52,22 @@ public class PieceTree extends RBTree<Piece> {
         return (piece != null) ? piece.getLength() : 0;
     }
 
-    private void collectText(Node<Piece> node, StringBuilder stringBuilder, TextBuffer textBuffer) {
+    private void collectText(Node<Piece> node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
         if (node == null) {
             return;
         }
         if (node.isLeaf()) {
-            String text = node.payload.getText(textBuffer);
+            String text = node.payload.getText(originalBuffer, addBuffer);
             stringBuilder.append(text);
         } else {
-            collectText(node.left, stringBuilder, textBuffer);
-            collectText(node.right, stringBuilder, textBuffer);
+            collectText(node.left, stringBuilder, originalBuffer, addBuffer);
+            collectText(node.right, stringBuilder, originalBuffer, addBuffer);
         }
     }
 
-    public String getText(TextBuffer textBuffer) {
+    public String getText(String originalBuffer, StringBuilder addBuffer) {
         StringBuilder sb = new StringBuilder(treeLength());
-        collectText(root, sb, textBuffer);
+        collectText(root, sb, originalBuffer, addBuffer);
         return sb.toString();
     }
 

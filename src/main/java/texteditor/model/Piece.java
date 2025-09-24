@@ -36,32 +36,32 @@ public class Piece {
         );
     }
 
-    public String getText(TextBuffer textBuffer) {
+    public String getText(String originalBuffer, StringBuilder addBuffer) {
         if (length == 0) return "";
         if (source == BufferType.ORIGINAL) {
-            return textBuffer.getOriginalBuffer().substring(start, start + length);
+            return originalBuffer.substring(start, start + length);
         } else {
-            return textBuffer.getAddBuffer().substring(start, start + length);
+            return addBuffer.substring(start, start + length);
         }
     }
 
-    public void calculateLineCount(TextBuffer textBuffer) {
+    public void calculateLineCount(String originalBuffer, StringBuilder addBuffer) {
         int count = 0;
-        String buffer = (source == BufferType.ORIGINAL) ? textBuffer.getOriginalBuffer() : textBuffer.getAddBuffer();
+        String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
         for (int i = start; i < start + length; i++) {
             if (buffer.charAt(i) == '\n') count++;
         }
         this.lineCount = count;
     }
 
-    public Integer getLineCount(TextBuffer textBuffer) {
-        if (lineCount == null) calculateLineCount(textBuffer);
+    public Integer getLineCount(String originalBuffer, StringBuilder addBuffer) {
+        if (lineCount == null) calculateLineCount(originalBuffer, addBuffer);
         return this.lineCount;
     }
 
-    public List<Integer> getLineStarts(TextBuffer textBuffer) {
+    public List<Integer> getLineStarts(String originalBuffer, StringBuilder addBuffer) {
         List<Integer> starts = new ArrayList<>();
-        String buffer = (source == BufferType.ORIGINAL) ? textBuffer.getOriginalBuffer() : textBuffer.getAddBuffer();
+        String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
         starts.add(0);
         for (int i = start; i < start + length; i++) {
             if (buffer.charAt(i) == '\n') starts.add(i - start + 1);
