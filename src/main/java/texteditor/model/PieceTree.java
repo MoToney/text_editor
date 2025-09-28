@@ -2,6 +2,7 @@ package texteditor.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class PieceTree extends RBTree<Piece> {
 
@@ -11,13 +12,13 @@ public class PieceTree extends RBTree<Piece> {
         PieceNode(Node<Piece> left, Node<Piece> right) {super(left, right);}
     }
 
-    public PieceTree() {super();}
-
     public PieceTree(Piece initial) {
-        if (initial == null) return;
-        this.root = createLeafNode(initial);
-        this.root.color = Color.BLACK;
+        if (initial != null) {
+            this.root = createLeafNode(initial);
+            this.root.color = Color.BLACK;
+        }
     }
+    public PieceTree() {this(null);}
 
     @Override
     protected Node<Piece> createLeafNode(Piece payload) {
@@ -84,27 +85,6 @@ public class PieceTree extends RBTree<Piece> {
         List<Piece> out = new ArrayList<>();
         collectPieces(root, out);
         return out;
-    }
-
-    private PieceTable.TextLocation findLocationRecursive(Node<Piece> node, int position) {
-        if (node.isLeaf()) {
-            return new PieceTable.TextLocation(node.payload, position, -1);
-        }
-
-        int leftLen = (node.left != null) ? node.left.length : 0;
-
-        if (position < leftLen) {
-            return findLocationRecursive(node.left, position);
-        } else {
-            return findLocationRecursive(node.right, position - leftLen);
-        }
-    }
-
-    public PieceTable.TextLocation findLocation(int position) {
-        if (root == null) return null;
-        if (position < 0) position = 0;
-        if (position > root.length) position = root.length;
-        return findLocationRecursive(root, position);
     }
 
     private void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
@@ -253,21 +233,8 @@ public class PieceTree extends RBTree<Piece> {
         recompute(node); // recalculate the node's length since children may have changed
         Node<Piece> grandparent = node.parent;
 
-        if (node.left == null && node.right == null) {
-            replaceChild(grandparent, node, null);
-            return node;
-        } else if (node.left == null) {
-            node.right.color = node.color;
-            replaceChild(grandparent, node, node.right);
-            return node;
-        } else if (node.right == null) {
-            node.left.color = node.color;
-            replaceChild(grandparent, node, node.left);
-            return node;
-        }
         return removedNode;
     }
-
 
     public boolean isValidRedBlack() {
         if (root != null && root.isRed()) return false;  // Root must be black
