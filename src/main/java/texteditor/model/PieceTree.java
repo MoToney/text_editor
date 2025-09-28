@@ -124,6 +124,26 @@ public class PieceTree extends RBTree<Piece> {
         replaceChild(grandparent, oldNode, newParent);
     }
 
+    private record NodeOffset(Node<Piece> node, int offset) {}
+
+    private NodeOffset findNodeAndOffset(int position) {
+        position = Math.min(treeLength(), Math.max(position, 0));
+
+        Node<Piece> node = root;
+        if (node == null) return null;
+
+        while (!Objects.requireNonNull(node).isLeaf()) {
+            int leftLen = (node.left != null) ? node.left.length : 0;
+            if (position < leftLen) {
+                node = node.left;
+            } else {
+                position -= leftLen;
+                node = node.right;
+            }
+        }
+        return new NodeOffset(node, position);
+    }
+
     @Override
     protected Node<Piece> insertRecursive(Node<Piece> node, int position, Piece pieceToInsert) {
         if (node.isLeaf()) {
