@@ -145,36 +145,26 @@ public class PieceTree extends RBTree<Piece> {
     }
 
     @Override
-    protected Node<Piece> insertRecursive(Node<Piece> node, int position, Piece pieceToInsert) {
-        if (node.isLeaf()) {
-            Piece old = node.payload;
-            int oldLen = old.getLength();
-            int offset = Math.max(0, Math.min(position, oldLen));
+    protected Node<Piece> insertRecursive(int position, Piece pieceToInsert) {
+        NodeOffset nodeAndOffset = findNodeAndOffset(position);
+        Node <Piece> node = nodeAndOffset.node;
+        int offset = nodeAndOffset.offset;
 
-            if (offset == 0) {
-                Node<Piece> newLeaf = createLeafNode(pieceToInsert);
-                addSiblingNode(node, newLeaf, true);
-                return newLeaf;
-
-            } else if (offset == oldLen) {
-                // new piece after current leaf
-                Node<Piece> newNode = createLeafNode(pieceToInsert);
-                addSiblingNode(node, newNode, false);
-                return newNode;
-
-            } else {
-                Node<Piece> newNode = createLeafNode(pieceToInsert);
-                splitLeafNode(node, newNode, offset);
-                return newNode;
-            }
-        }
-
-        int leftLen = (node.left != null) ? node.left.length : 0;
-
-        if (position < leftLen) {
-            return insertRecursive(node.left, position, pieceToInsert);
+        Piece old = node.payload;
+        int oldLen = old.getLength();
+        if (offset == 0) {
+            Node<Piece> newLeaf = createLeafNode(pieceToInsert);
+            addSiblingNode(node, newLeaf, true);
+            return newLeaf;
+        } else if (offset == oldLen) {
+            // new piece after current leaf
+            Node<Piece> newNode = createLeafNode(pieceToInsert);
+            addSiblingNode(node, newNode, false);
+            return newNode;
         } else {
-            return insertRecursive(node.right, position - leftLen, pieceToInsert);
+            Node<Piece> newNode = createLeafNode(pieceToInsert);
+            splitLeafNode(node, newNode, offset);
+            return newNode;
         }
     }
 
