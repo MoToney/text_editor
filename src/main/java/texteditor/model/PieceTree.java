@@ -3,6 +3,7 @@ package texteditor.model;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public class PieceTree extends RBTree<Piece> {
 
@@ -38,7 +39,6 @@ public class PieceTree extends RBTree<Piece> {
     protected void recompute(Node<Piece> node) {
         if (node == null) return;
 
-
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
         } else {
@@ -54,9 +54,7 @@ public class PieceTree extends RBTree<Piece> {
     }
 
     private void collectText(Node<Piece> node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
-        if (node == null) {
-            return;
-        }
+        if (node == null) {return;}
         if (node.isLeaf()) {
             String text = node.payload.getText(originalBuffer, addBuffer);
             stringBuilder.append(text);
@@ -126,11 +124,11 @@ public class PieceTree extends RBTree<Piece> {
 
     private record NodeOffset(Node<Piece> node, int offset) {}
 
-    private NodeOffset findNodeAndOffset(int position) {
-        position = Math.min(treeLength(), Math.max(position, 0));
-
+    private Optional<NodeOffset> findNodeAndOffset(int position) {
+        if (root == null) return Optional.empty();
         Node<Piece> node = root;
-        if (node == null) return null;
+
+        position = Math.min(treeLength(), Math.max(position, 0));
 
         while (!Objects.requireNonNull(node).isLeaf()) {
             int leftLen = (node.left != null) ? node.left.length : 0;
@@ -141,12 +139,20 @@ public class PieceTree extends RBTree<Piece> {
                 node = node.right;
             }
         }
-        return new NodeOffset(node, position);
+        return Optional.of(new NodeOffset(node, position));
     }
 
     @Override
     protected Node<Piece> insertRecursive(int position, Piece pieceToInsert) {
-        NodeOffset nodeAndOffset = findNodeAndOffset(position);
+        Optional<NodeOffset> result = findNodeAndOffset(position);
+
+        if (result.isEmpty()) {
+            this.root = createLeafNode(pieceToInsert);
+            this.root.color = Color.BLACK;
+            return this.root;
+        }
+
+        NodeOffset nodeAndOffset = result.get();
         Node <Piece> node = nodeAndOffset.node;
         int offset = nodeAndOffset.offset;
 
