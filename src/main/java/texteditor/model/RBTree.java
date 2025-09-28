@@ -132,7 +132,7 @@ public abstract class RBTree<T> {
         bubbleRecompute(y.parent);
     }
 
-    protected abstract Node<T> insertRecursive(Node<T> node, int position, T payload);
+    protected abstract Node<T> insertRecursive(int position, T payload);
 
     protected void insertFixup(Node<T> node) {
         while (node != null && node.parent != null && node.parent.isRed()) {
@@ -206,7 +206,7 @@ public abstract class RBTree<T> {
             return;
         }
 
-        Node<T> insertedNode = insertRecursive(root, position, payload);
+        Node<T> insertedNode = insertRecursive(position, payload);
 
         insertFixup(insertedNode);
     }
