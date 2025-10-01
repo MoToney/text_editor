@@ -12,6 +12,8 @@ public class Piece {
     private final BufferType source;
     private final int start;
     private final int length;
+    private Integer lineCount;
+    private boolean lineCountCalculated;
     List<Integer> lineStarts;
 
 
@@ -19,6 +21,7 @@ public class Piece {
         this.source = source;
         this.start = start;
         this.length = length;
+        this.lineCount = null;
     }
 
     public BufferType getSource() {return source;}
@@ -42,6 +45,20 @@ public class Piece {
         }
     }
 
+    public void calculateLineCount(String originalBuffer, StringBuilder addBuffer) {
+        int count = 0;
+        String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+        for (int i = start; i < start + length; i++) {
+            if (buffer.charAt(i) == '\n') count++;
+        }
+        this.lineCount = count;
+    }
+
+    public Integer getLineCount(String originalBuffer, StringBuilder addBuffer) {
+        if (lineCount == null) calculateLineCount(originalBuffer, addBuffer);
+        return this.lineCount;
+    }
+
     public List<Integer> getLineStarts(String originalBuffer, StringBuilder addBuffer) {
         List<Integer> starts = new ArrayList<>();
         String buffer = (source == BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
@@ -49,6 +66,6 @@ public class Piece {
         for (int i = start; i < start + length; i++) {
             if (buffer.charAt(i) == '\n') starts.add(i - start + 1);
         }
-        return starts;
+            return starts;
     }
 }

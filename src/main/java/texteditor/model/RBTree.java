@@ -1,5 +1,7 @@
 package texteditor.model;
 
+import java.util.Optional;
+
 public abstract class RBTree<T> {
     enum Color {RED, BLACK}
 
@@ -38,9 +40,33 @@ public abstract class RBTree<T> {
         boolean isBlack() {
             return color == Color.BLACK;
         }
+
+        @Override
+        public String toString() {
+            String role =  (isLeaf()) ? "L" : "I";
+            return String.format(
+                    "[%s %s len=%d]",
+                    role,
+                    isRed() ? "Red" : "Black",
+                    length
+            );
+        }
+
     }
 
     protected Node<T> root;
+
+    protected Node<T> createLeafNode(T payload) {
+        Node<T> n = new Node<>(payload);
+        recompute(n);
+        return n;
+    }
+    protected Node<T> createInternalNode(Node<T> left, Node<T> right) {
+        Node<T> n = new Node<>(left, right);
+        recompute(n);
+        return n;
+    }
+
 
     protected abstract void recompute(Node<T> node);
 
@@ -120,7 +146,7 @@ public abstract class RBTree<T> {
         bubbleRecompute(y.parent);
     }
 
-    protected abstract Node<T> insertRecursive(Node<T> node, int position, T payload);
+    protected abstract Node<T> insertRecursive(int position, T payload);
 
     protected void insertFixup(Node<T> node) {
         while (node != null && node.parent != null && node.parent.isRed()) {
@@ -194,14 +220,14 @@ public abstract class RBTree<T> {
             return;
         }
 
-        Node<T> insertedNode = insertRecursive(root, position, payload);
+        Node<T> insertedNode = insertRecursive(position, payload);
 
         insertFixup(insertedNode);
     }
 
-    protected abstract Node<T> removeRecursive(Node<T> root, int position, int removeLength);
+    protected abstract Optional<Node<T>> removeRecursive(int position, int removeLength);
 
-    private Node<T> findNodeForFixup(Node<T> removedNode) {
+    protected Node<T> findNodeForFixup(Node<T> removedNode) {
         // The removed node's parent should now point to whatever replaced it
         Node<T> parent = removedNode.parent;
         if (parent == null) {
@@ -300,9 +326,9 @@ public abstract class RBTree<T> {
             removeLength = treeLength - position; // trim to valid range
         }
 
-        Node<T> removedLeafNode = removeRecursive(root, position, removeLength);
-        if (removedLeafNode != null && removedLeafNode.isBlack()) {
-            Node<T> problemNode = findNodeForFixup(removedLeafNode);
+        Optional<Node<T>> resultNode = removeRecursive(position, removeLength);
+        if (!resultNode.isEmpty() && resultNode.get().isBlack()) {
+            Node<T> problemNode = findNodeForFixup(resultNode.get());
             if (problemNode != null) {
                 removeFixup(problemNode);
             }
