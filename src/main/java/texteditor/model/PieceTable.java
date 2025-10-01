@@ -18,7 +18,7 @@ public class PieceTable {
         this.lineCache = new ArrayList<>();
         this.pieceTree = new PieceTree();
 
-        if (!originalText.isEmpty() && originalText != null) {
+        if (!originalText.isEmpty()) {
             Piece piece = new Piece(Piece.BufferType.ORIGINAL, 0, originalText.length());
             pieceTree.insert(0, piece);
             this.totalLength = piece.getLength();
@@ -240,7 +240,7 @@ public class PieceTable {
 
                 }
 
-                int lastNewlinePos = lineStarts.get(lineStarts.size() - 1);
+                int lastNewlinePos = lineStarts.getLast();
                 if (lastNewlinePos < piece.getLength()) {
                     currentLineLength += piece.getLength() - lastNewlinePos;
                 }
