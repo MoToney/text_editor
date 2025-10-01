@@ -47,28 +47,23 @@ public class PieceTable {
             return;
         }
 
-        PieceTree.NodeOffset nodeAndOffset = result.get();
-        RBTree.Node<Piece> node = nodeAndOffset.node();
-        int offset = nodeAndOffset.offset();
+        RBTree.Node<Piece> node = result.get().node();
+        int offset = result.get().offset();
 
-        Piece old = node.payload;
-        int oldLen = old.getLength();
+        Piece oldPiece = node.payload;
         if (offset == 0) {
             RBTree.Node<Piece> newLeaf = pieceTree.createLeafNode(pieceToInsert);
             pieceTree.addSiblingNode(node, newLeaf, true);
             pieceTree.insertFixup(newLeaf);
-            return;
-        } else if (offset == oldLen) {
+        } else if (offset == oldPiece.getLength()) {
             // new piece after current leaf
             RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
             pieceTree.addSiblingNode(node, newNode, false);
             pieceTree.insertFixup(newNode);
-            return;
         } else {
             RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
             pieceTree.splitLeafNode(node, newNode, offset);
             pieceTree.insertFixup(newNode);
-            return;
         }
     }
 
@@ -80,10 +75,103 @@ public class PieceTable {
             length = totalLength - position;  // trim to valid range
         }
 
-        pieceTree.remove(position, length);  // delegate to PieceTree
+        removeHelper(position, length);
         totalLength -= length;
 
         rebuildLineCache();
+    }
+
+    public void removeHelper(int position, int removeLength) {
+        if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
+        if (pieceTree.root == null) throw new IllegalStateException("Tree is empty");
+
+        Optional<PieceTree.NodeRange> result = pieceTree.findNodeAndRange(position, removeLength);
+        if (result.isEmpty()) {
+            throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
+        }
+
+        PieceTree.NodeOffset start = result.get().start();
+        PieceTree.NodeOffset end = result.get().end();
+
+        if (start.node() == end.node()) {
+            RBTree.Node<Piece> leaf = start.node();
+            Piece piece = leaf.payload;
+
+            int leftLen = start.offset();
+            int rightLen = piece.getLength() - end.offset();
+
+            if (leftLen > 0 && rightLen > 0) {
+                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
+                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+
+                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
+                RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
+                RBTree.Node<Piece> newParent = pieceTree.createInternalNode(leftNode, rightNode);
+
+                newParent.color = leaf.color;
+
+                pieceTree.replaceChild(leaf.parent, leaf, newParent);
+                return;
+            } else if (leftLen > 0) {
+                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
+                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
+                pieceTree.recompute(leftNode);
+
+                leftNode.color = leaf.color;
+
+                pieceTree.replaceChild(leaf.parent, leaf, leftNode);
+                return;
+            } else if (rightLen > 0) {
+                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+                RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
+                pieceTree.recompute(rightNode);
+
+                rightNode.color = leaf.color;
+
+                pieceTree.replaceChild(leaf.parent, leaf, rightNode);
+                return;
+            } else {
+                pieceTree.replaceChild(leaf.parent, leaf, null);
+                if (leaf.isBlack()) {
+                    RBTree.Node<Piece> problemNode = pieceTree.findNodeForFixup(leaf);
+                    if (problemNode != null) pieceTree.removeFixup(problemNode);
+                }
+                return;
+            }
+        }
+        // TODO:  create a version that grabs the interior nodes prior to trimming start and end nodes, and removes them
+        RBTree.Node<Piece> startLeaf = start.node();
+        RBTree.Node<Piece> endLeaf = end.node();
+
+        if (start.offset() < startLeaf.payload.getLength()) {
+            Piece leftPiece = new Piece(startLeaf.payload.getSource(), startLeaf.payload.getStart(), start.offset());
+            if (leftPiece.getLength() > 0) {
+                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
+                pieceTree.replaceChild(startLeaf.parent, startLeaf, leftNode);
+                startLeaf = leftNode;
+            } else {
+                pieceTree.replaceChild(startLeaf.parent, startLeaf, null);
+            }
+
+        }
+
+        int rightLen = endLeaf.payload.getLength() - end.offset();
+        if (rightLen > 0) {
+            Piece rightPiece = new Piece(endLeaf.payload.getSource(), endLeaf.payload.getStart() + end.offset(), rightLen);
+            RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
+            pieceTree.replaceChild(endLeaf.parent, endLeaf, rightNode);
+            endLeaf = rightNode;
+        } else {
+            pieceTree.replaceChild(endLeaf.parent, endLeaf, null);
+        }
+
+        RBTree.Node<Piece> returnLeaf = pieceTree.removeBetweenLeaves(startLeaf, endLeaf);
+        pieceTree.bubbleRecompute(startLeaf);
+        pieceTree.bubbleRecompute(endLeaf);
+        if (returnLeaf.isBlack()) {
+            RBTree.Node<Piece> problemNode = pieceTree.findNodeForFixup(returnLeaf);
+            if (problemNode != null) pieceTree.removeFixup(problemNode);
+        }
     }
 
     public String getText() {

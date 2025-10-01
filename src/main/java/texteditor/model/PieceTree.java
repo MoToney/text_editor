@@ -90,6 +90,16 @@ public class PieceTree extends RBTree<Piece> {
         return out;
     }
 
+    void replaceLeafWithSequence(Node<Piece> targetLeaf, Node<Piece> leftNode, Node<Piece> middleNode, Node<Piece> rightNode) {
+        Node<Piece> grand = targetLeaf.parent;
+        Node<Piece> rightSubTree = (rightNode != null) ? createInternalNode(middleNode, rightNode) : middleNode;
+        rightSubTree.color = Color.RED;
+
+        Node<Piece> newParent = (leftNode != null) ? createInternalNode(leftNode, rightSubTree) : rightSubTree;
+        newParent.color = grand.color;
+        replaceChild(grand, targetLeaf, newParent);
+    }
+
     void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
         Node<Piece> grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
 
@@ -285,7 +295,7 @@ public class PieceTree extends RBTree<Piece> {
 
     }
 
-    private Node<Piece> removeBetweenLeaves(Node<Piece> startLeaf, Node<Piece> endLeaf) {
+    Node<Piece> removeBetweenLeaves(Node<Piece> startLeaf, Node<Piece> endLeaf) {
         if (startLeaf == null || endLeaf == null) throw new IllegalArgumentException("Illegal remove between leaves");
 
         Node<Piece> curLeaf = nextLeaf(startLeaf);
