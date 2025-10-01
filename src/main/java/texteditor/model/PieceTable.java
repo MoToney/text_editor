@@ -6,7 +6,6 @@ public class PieceTable {
 
     private final String originalBuffer;
     private final StringBuilder addBuffer;
-    // private final List<Piece> pieces;
     private final PieceTree pieceTree;
     private final List<Line> lineCache;
     private int totalLength;
