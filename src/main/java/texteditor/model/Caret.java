@@ -16,7 +16,7 @@ public class Caret {
     public int getPosition() {return position;}
 
     public void setPosition(int position) {
-        int max = document.getLength();
+        int max = document.getTreeLength();
         this.position = Math.max(0, Math.min(position, max));
     }
 

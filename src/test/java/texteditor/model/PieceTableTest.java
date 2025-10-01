@@ -11,7 +11,7 @@ PieceTableTest {
     public void constructorAndBasicGetters() {
         PieceTable pt = new PieceTable("Hello");
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getLength());
+        assertEquals(5, pt.getTreeLength());
         assertEquals(1, pt.getLineCount());
         assertEquals("Hello", pt.getLine(0));
         assertTrue(pt.isLastLine(0));
@@ -23,7 +23,7 @@ PieceTableTest {
         PieceTable pt = new PieceTable("world");
         pt.insert(0, "Hello ");
         assertEquals("Hello world", pt.getText());
-        assertEquals(11, pt.getLength());
+        assertEquals(11, pt.getTreeLength());
     }
 
     @Test
@@ -31,7 +31,7 @@ PieceTableTest {
         PieceTable pt = new PieceTable("abcde");
         pt.insert(2, "X");
         assertEquals("abXcde", pt.getText());
-        assertEquals(6, pt.getLength());
+        assertEquals(6, pt.getTreeLength());
     }
 
     @Test
@@ -39,7 +39,7 @@ PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.insert(3, "def");
         assertEquals("abcdef", pt.getText());
-        assertEquals(6, pt.getLength());
+        assertEquals(6, pt.getTreeLength());
     }
 
     @Test
@@ -47,7 +47,7 @@ PieceTableTest {
         PieceTable pt = new PieceTable("");
         pt.insert(0, "abc");
         assertEquals("abc", pt.getText());
-        assertEquals(3, pt.getLength());
+        assertEquals(3, pt.getTreeLength());
         assertEquals(1, pt.getLineCount());
     }
 
@@ -56,7 +56,7 @@ PieceTableTest {
         PieceTable pt = new PieceTable("abcdef");
         pt.remove(2, 2); // remove "cd"
         assertEquals("abef", pt.getText());
-        assertEquals(4, pt.getLength());
+        assertEquals(4, pt.getTreeLength());
     }
 
     @Test
@@ -68,7 +68,7 @@ PieceTableTest {
         pt.remove(3, 10);
         // Expected result calculated manually: "Hel" + remaining "ld" -> "Helld"
         assertEquals("Helld", pt.getText());
-        assertEquals(5, pt.getLength());
+        assertEquals(5, pt.getTreeLength());
     }
 
     @Test
@@ -77,7 +77,7 @@ PieceTableTest {
         // attempt to remove starting beyond document length -> should be no-op
         pt.remove(10, 2);
         assertEquals("hello", pt.getText());
-        assertEquals(5, pt.getLength());
+        assertEquals(5, pt.getTreeLength());
     }
 
     @Test
@@ -138,22 +138,22 @@ PieceTableTest {
         // Insert text in the middle
         pt.insert(5, "12345"); // "Hello12345World"
         assertEquals("Hello12345World", pt.getText());
-        assertEquals(15, pt.getLength());
+        assertEquals(15, pt.getTreeLength());
 
         // Remove part of the inserted text + some original text
         pt.remove(3, 7); // removes "lo12345" -> "HelWorld"
         assertEquals("HelWorld", pt.getText());
-        assertEquals(8, pt.getLength());
+        assertEquals(8, pt.getTreeLength());
 
         // Insert again at the beginning
         pt.insert(0, "Start-"); // "Start-HelWorld"
         assertEquals("Start-HelWorld", pt.getText());
-        assertEquals(14, pt.getLength());
+        assertEquals(14, pt.getTreeLength());
 
         // Remove at the end
-        pt.remove(pt.getLength() - 3, 3); // removes "rld" -> "Start-HelWo"
+        pt.remove(pt.getTreeLength() - 3, 3); // removes "rld" -> "Start-HelWo"
         assertEquals("Start-HelWo", pt.getText());
-        assertEquals(11, pt.getLength());
+        assertEquals(11, pt.getTreeLength());
     }
 
     @Test
@@ -164,28 +164,28 @@ PieceTableTest {
         pt.insert(5, "\n123\n"); // "Hello\n123\n\nWorld"
         // Length calculation: "Hello" (5) + "\n123\n" (5) + "\nWorld" (6) = 16
         assertEquals("Hello\n123\n\nWorld", pt.getText());
-        assertEquals(16, pt.getLength());
+        assertEquals(16, pt.getTreeLength());
         assertEquals(4, pt.getLineCount()); // lines: "Hello\n", "123\n", "\n", "World"
 
         // Remove across multiple lines
         pt.remove(4, 6); // removes "o\n123\n" -> "Hell\nWorld"
         // Length calculation: "Hell" (4) + "\nWorld" (6) = 10
         assertEquals("Hell\nWorld", pt.getText());
-        assertEquals(10, pt.getLength());
+        assertEquals(10, pt.getTreeLength());
         assertEquals(2, pt.getLineCount()); // lines: "Hell\n", "World"
 
         // Insert newline at the beginning
         pt.insert(0, "\nStart\n"); // "\nStart\nHell\nWorld"
         // Length calculation: "\nStart\n" (7) + "Hell\nWorld" (10) = 17
         assertEquals("\nStart\nHell\nWorld", pt.getText());
-        assertEquals(17, pt.getLength());
+        assertEquals(17, pt.getTreeLength());
         assertEquals(4, pt.getLineCount()); // lines: "\n", "Start\n", "Hell\n", "World"
 
         // Remove newline and text at the end
-        pt.remove(pt.getLength() - 5, 5); // removes "World" -> "\nStart\nHell\n"
+        pt.remove(pt.getTreeLength() - 5, 5); // removes "World" -> "\nStart\nHell\n"
         // Length calculation: "\nStart\nHell\n" = 12
         assertEquals("\nStart\nHell\n", pt.getText());
-        assertEquals(12, pt.getLength());
+        assertEquals(12, pt.getTreeLength());
         assertEquals(3, pt.getLineCount()); // lines: "\n", "Start\n", "Hell\
     }
 }

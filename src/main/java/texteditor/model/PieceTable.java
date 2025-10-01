@@ -39,7 +39,7 @@ public class PieceTable {
         rebuildLineCache();
     }
 
-    public void insertHelper(int position, Piece pieceToInsert) {
+    private void insertHelper(int position, Piece pieceToInsert) {
         Optional<PieceTree.NodeOffset> result = pieceTree.findNodeAndOffset(position);
 
         if (result.isEmpty()) {
@@ -67,7 +67,6 @@ public class PieceTable {
         }
     }
 
-
     public void remove(int position, int length) {
         if (length <= 0 || position < 0 || position >= totalLength) return;
 
@@ -81,7 +80,7 @@ public class PieceTable {
         rebuildLineCache();
     }
 
-    public void removeHelper(int position, int removeLength) {
+    private void removeHelper(int position, int removeLength) {
         if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
         if (pieceTree.root == null) throw new IllegalStateException("Tree is empty");
 
@@ -175,17 +174,40 @@ public class PieceTable {
     }
 
     public String getText() {
-        return pieceTree.getText(originalBuffer, addBuffer);
+        StringBuilder sb = new StringBuilder(pieceTree.treeLength());
+        getTextHelper(pieceTree.root, sb);
+        return sb.toString();
     }
 
-    public int getLength() {
-        return pieceTree.treeLength();
+    private void getTextHelper(RBTree.Node<Piece> node, StringBuilder stringBuilder) {
+        if (node == null) {return;}
+        if (node.isLeaf()) {
+            String text = node.payload.getText(originalBuffer, addBuffer);
+            stringBuilder.append(text);
+        } else {
+            getTextHelper(node.left, stringBuilder);
+            getTextHelper(node.right, stringBuilder);
+        }
     }
 
-    public record TextLocation(Piece piece, int offsetInPiece, int pieceIndex) {}
+    private void collectPieces(RBTree.Node<Piece> node, List<Piece> out) {
+        if (node == null) return;
+        if (node.isLeaf()) out.add(node.payload);
+        else {
+            collectPieces(node.left, out);
+            collectPieces(node.right, out);
+        }
+    }
+    public List<Piece> toPieceList() {
+        List<Piece> out = new ArrayList<>();
+        collectPieces(pieceTree.root, out);
+        return out;
+    }
+
+    public int getTreeLength() { return pieceTree.treeLength(); }
 
     private void rebuildLineCache() {
-        List<Piece> pieces = pieceTree.toPieceList();
+        List<Piece> pieces = toPieceList();
         lineCache.clear();
         if (pieces.isEmpty()) {
             lineCache.add(new Line(0, 0, 0));
@@ -242,7 +264,7 @@ public class PieceTable {
     }
 
     public String getLine(int lineIndex) {
-        List<Piece> pieces = pieceTree.toPieceList();
+        List<Piece> pieces = toPieceList();
         if (lineIndex < 0 || lineIndex >= lineCache.size()) {
             throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);
         }
