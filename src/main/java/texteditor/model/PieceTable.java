@@ -34,9 +34,44 @@ public class PieceTable {
         addBuffer.append(text);
         Piece newPiece = new Piece(Piece.BufferType.ADD, addBuffer.length() - textLength, textLength);
 
-        pieceTree.insert(position, newPiece);
-        totalLength += text.length();
+        insertHelper(position, newPiece);
+        totalLength += textLength;
         rebuildLineCache();
+    }
+
+    public void insertHelper(int position, Piece pieceToInsert) {
+        Optional<PieceTree.NodeOffset> result = pieceTree.findNodeAndOffset(position);
+
+        if (result.isEmpty()) {
+            pieceTree.root = pieceTree.createLeafNode(pieceToInsert);
+            pieceTree.root.color = RBTree.Color.BLACK;
+            pieceTree.recompute(pieceTree.root);
+            return;
+        }
+
+        PieceTree.NodeOffset nodeAndOffset = result.get();
+        RBTree.Node<Piece> node = nodeAndOffset.node();
+        int offset = nodeAndOffset.offset();
+
+        Piece old = node.payload;
+        int oldLen = old.getLength();
+        if (offset == 0) {
+            RBTree.Node<Piece> newLeaf = pieceTree.createLeafNode(pieceToInsert);
+            pieceTree.addSiblingNode(node, newLeaf, true);
+            pieceTree.insertFixup(newLeaf);
+            return;
+        } else if (offset == oldLen) {
+            // new piece after current leaf
+            RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
+            pieceTree.addSiblingNode(node, newNode, false);
+            pieceTree.insertFixup(newNode);
+            return;
+        } else {
+            RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
+            pieceTree.splitLeafNode(node, newNode, offset);
+            pieceTree.insertFixup(newNode);
+            return;
+        }
     }
 
 
