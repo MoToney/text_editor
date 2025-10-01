@@ -37,7 +37,7 @@ public class CaretController {
     public void moveRight() {
         if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
-        if (currentPosition < document.getLength()) {
+        if (currentPosition < document.getTreeLength()) {
             cursor.setPosition(currentPosition + 1);
             cursor.setAffinity(Caret.Affinity.RIGHT);
         }
@@ -46,7 +46,7 @@ public class CaretController {
     public void moveToLineStart(List<VisualLine> visualLines) {
         if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
-        if (currentPosition > document.getLength()) {return;}
+        if (currentPosition > document.getTreeLength()) {return;}
 
         int lineIndex = findVisualLineIndex(currentPosition, visualLines);
         lineIndex = adjustForAffinity(currentPosition, lineIndex, visualLines);
@@ -60,7 +60,7 @@ public class CaretController {
     public void moveToLineEnd(List<VisualLine> visualLines) {
         if (cursor == null) {return;}
         int currentPosition = cursor.getPosition();
-        if (currentPosition > document.getLength()) {return;}
+        if (currentPosition > document.getTreeLength()) {return;}
 
         int lineIndex = findVisualLineIndex(currentPosition, visualLines);
         lineIndex = adjustForAffinity(currentPosition, lineIndex, visualLines);
@@ -84,7 +84,7 @@ public class CaretController {
      */
     public void moveUpOrDown(List<VisualLine> visualLines, int direction) {
         int currentPosition = cursor.getPosition();
-        if (currentPosition > document.getLength()) {return;}
+        if (currentPosition > document.getTreeLength()) {return;}
 
         int currentLineIndex = findVisualLineIndex(currentPosition, visualLines);
         currentLineIndex = adjustForAffinity(currentPosition, currentLineIndex, visualLines);
@@ -156,7 +156,7 @@ public class CaretController {
     public int findVisualLineIndex(int position, List<VisualLine> visualLines) {
         if (visualLines.isEmpty()) return -1;
 
-        int docLength = document.getLength();
+        int docLength = document.getTreeLength();
         position = Math.max(0, Math.min(position, docLength));
 
         int left = 0, right = visualLines.size() - 1;

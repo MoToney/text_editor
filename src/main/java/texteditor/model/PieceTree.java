@@ -27,21 +27,18 @@ public class PieceTree extends RBTree<Piece> {
         this.recompute(this.root);
         return;
     }
-
     @Override
     protected Node<Piece> createLeafNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
         recompute(node);
         return node;
     }
-
     @Override
     protected Node<Piece> createInternalNode(Node<Piece> left, Node<Piece> right) {
         PieceNode node = new PieceNode(left, right);
         recompute(node);
         return node;
     }
-
     @Override
     protected void recompute(Node<Piece> node) {
         if (node == null) return;
@@ -54,50 +51,9 @@ public class PieceTree extends RBTree<Piece> {
             node.length = leftLen + rightLen;
         }
     }
-
     @Override
     protected int payloadLength(Piece piece) {
         return (piece != null) ? piece.getLength() : 0;
-    }
-
-    private void collectText(Node<Piece> node, StringBuilder stringBuilder, String originalBuffer, StringBuilder addBuffer) {
-        if (node == null) {return;}
-        if (node.isLeaf()) {
-            String text = node.payload.getText(originalBuffer, addBuffer);
-            stringBuilder.append(text);
-        } else {
-            collectText(node.left, stringBuilder, originalBuffer, addBuffer);
-            collectText(node.right, stringBuilder, originalBuffer, addBuffer);
-        }
-    }
-    public String getText(String originalBuffer, StringBuilder addBuffer) {
-        StringBuilder sb = new StringBuilder(treeLength());
-        collectText(root, sb, originalBuffer, addBuffer);
-        return sb.toString();
-    }
-    private void collectPieces(Node<Piece> node, List<Piece> out) {
-        if (node == null) return;
-        if (node.isLeaf()) out.add(node.payload);
-        else {
-            collectPieces(node.left, out);
-            collectPieces(node.right, out);
-        }
-    }
-
-    public List<Piece> toPieceList() {
-        List<Piece> out = new ArrayList<>();
-        collectPieces(root, out);
-        return out;
-    }
-
-    void replaceLeafWithSequence(Node<Piece> targetLeaf, Node<Piece> leftNode, Node<Piece> middleNode, Node<Piece> rightNode) {
-        Node<Piece> grand = targetLeaf.parent;
-        Node<Piece> rightSubTree = (rightNode != null) ? createInternalNode(middleNode, rightNode) : middleNode;
-        rightSubTree.color = Color.RED;
-
-        Node<Piece> newParent = (leftNode != null) ? createInternalNode(leftNode, rightSubTree) : rightSubTree;
-        newParent.color = grand.color;
-        replaceChild(grand, targetLeaf, newParent);
     }
 
     void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
@@ -138,7 +94,6 @@ public class PieceTree extends RBTree<Piece> {
     }
 
     record NodeOffset(Node<Piece> node, int offset) {}
-
     Optional<NodeOffset> findNodeAndOffset(int position) {
         if (root == null) return Optional.empty();
         Node<Piece> node = root;
@@ -190,7 +145,6 @@ public class PieceTree extends RBTree<Piece> {
     }
 
     record NodeRange(NodeOffset start, NodeOffset end) {}
-
     Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
         if (root == null || removeLength <= 0) return Optional.empty();
 
@@ -343,10 +297,6 @@ public class PieceTree extends RBTree<Piece> {
         }
         if (anc == null) return null;
         return leftmost(anc.right);
-    }
-
-    private Node<Piece> trimLeaf(Node<Piece> leaf, int keepStart, int keepEnd) {
-        return null;
     }
 
     public boolean isValidRedBlack() {

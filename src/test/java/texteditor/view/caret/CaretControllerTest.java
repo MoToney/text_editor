@@ -77,9 +77,9 @@ class CaretControllerTest {
 
     @Test
     void moveRight_doesNothing_atDocumentEnd() {
-        caret.setPosition(document.getLength());
+        caret.setPosition(document.getTreeLength());
         controller.moveRight();
-        assertEquals(document.getLength(), caret.getPosition());
+        assertEquals(document.getTreeLength(), caret.getPosition());
     }
 
     // --- Line navigation ---
