@@ -1,5 +1,7 @@
 package texteditor.model;
 
+import java.util.Optional;
+
 public abstract class RBTree<T> {
     enum Color {RED, BLACK}
 
@@ -38,6 +40,18 @@ public abstract class RBTree<T> {
         boolean isBlack() {
             return color == Color.BLACK;
         }
+
+        @Override
+        public String toString() {
+            String role =  (isLeaf()) ? "L" : "I";
+            return String.format(
+                    "[%s %s len=%d]",
+                    role,
+                    isRed() ? "Red" : "Black",
+                    length
+            );
+        }
+
     }
 
     protected Node<T> root;
@@ -211,9 +225,9 @@ public abstract class RBTree<T> {
         insertFixup(insertedNode);
     }
 
-    protected abstract Node<T> removeRecursive(Node<T> root, int position, int removeLength);
+    protected abstract Optional<Node<T>> removeRecursive(int position, int removeLength);
 
-    private Node<T> findNodeForFixup(Node<T> removedNode) {
+    protected Node<T> findNodeForFixup(Node<T> removedNode) {
         // The removed node's parent should now point to whatever replaced it
         Node<T> parent = removedNode.parent;
         if (parent == null) {
@@ -312,9 +326,9 @@ public abstract class RBTree<T> {
             removeLength = treeLength - position; // trim to valid range
         }
 
-        Node<T> removedLeafNode = removeRecursive(root, position, removeLength);
-        if (removedLeafNode != null && removedLeafNode.isBlack()) {
-            Node<T> problemNode = findNodeForFixup(removedLeafNode);
+        Optional<Node<T>> resultNode = removeRecursive(position, removeLength);
+        if (!resultNode.isEmpty() && resultNode.get().isBlack()) {
+            Node<T> problemNode = findNodeForFixup(resultNode.get());
             if (problemNode != null) {
                 removeFixup(problemNode);
             }
