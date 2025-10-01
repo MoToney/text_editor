@@ -174,82 +174,164 @@ public class PieceTree extends RBTree<Piece> {
         }
     }
 
+    private record NodeRange(NodeOffset start, NodeOffset end) {}
+
+    private Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
+        if (root == null || removeLength <= 0) return Optional.empty();
+
+        int treeLen = treeLength();
+        if (position < 0 || position >= treeLen) return Optional.empty();
+
+        int startPos = Math.max(0, position);
+        int endPos = Math.min(treeLength(), position + removeLength);
+
+        NodeOffset start = findNodeAndOffset(startPos).orElse(null);
+        NodeOffset end = findNodeAndOffset(endPos).orElse(null);
+
+        return (start != null && end != null) ? Optional.of(new NodeRange(start, end)) : Optional.empty();
+    }
+
     @Override
-    protected Node<Piece> removeRecursive(Node<Piece> node, int position, int removeLength) {
-        if (node == null || removeLength <= 0) return node;
+    protected Optional<Node<Piece>> removeRecursive(int position, int removeLength) {
+        if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
+        if (root == null) throw new IllegalStateException("Tree is empty");
 
-        if (node.isLeaf()) {
-            int pieceLen = node.payload.getLength();
-            int start = Math.max(0, Math.min(position, pieceLen)); // start point of the deletion
-            int end = Math.max(0, Math.min(position + removeLength, pieceLen)); // end point of the deletion
-            if (start >= end) return node; // nothing to remove in this leaf
+        Optional<NodeRange> result = findNodeAndRange(position, removeLength);
+        if (result.isEmpty()) {
+            throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
+        }
 
-            int leftLen = start; // length of the left portion of the string after deletion
-            int rightLen = pieceLen - end; // length of the right portion of the string after deletion
+        NodeOffset start = result.get().start();
+        NodeOffset end = result.get().end();
 
-            Node<Piece> grandparent = node.parent;
+        if (start.node() == end.node()) {
+            Node<Piece> leaf = start.node;
+            Piece piece = leaf.payload;
+
+            int leftLen = start.offset();
+            int rightLen = piece.getLength() - end.offset();
 
             if (leftLen > 0 && rightLen > 0) {
-                Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
-                Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
+                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
+                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
 
                 Node<Piece> leftNode = createLeafNode(leftPiece);
                 Node<Piece> rightNode = createLeafNode(rightPiece);
                 Node<Piece> newParent = createInternalNode(leftNode, rightNode);
 
-                newParent.color = node.color;
+                newParent.color = leaf.color;
 
-                replaceChild(grandparent,node, newParent);
-                return null;
-
+                replaceChild(leaf.parent, leaf, newParent);
+                return Optional.empty();
             } else if (leftLen > 0) {
-                Piece leftPiece = new Piece(node.payload.getSource(), node.payload.getStart(), leftLen);
+                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
                 Node<Piece> leftNode = createLeafNode(leftPiece);
                 recompute(leftNode);
 
-                leftNode.color = node.color;
+                leftNode.color = leaf.color;
 
-                replaceChild(grandparent, node, leftNode);
-                return null;
+                replaceChild(leaf.parent, leaf, leftNode);
+                return Optional.empty();
 
             } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(node.payload.getSource(), node.payload.getStart() + end, rightLen);
+                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
                 Node<Piece> rightNode = createLeafNode(rightPiece);
                 recompute(rightNode);
 
-                rightNode.color = node.color;
+                rightNode.color = leaf.color;
 
-                replaceChild(grandparent, node, rightNode);
-                return null;
+                replaceChild(leaf.parent, leaf, rightNode);
+                return Optional.empty();
             } else {
-                replaceChild(grandparent, node, null);
-                return node;
+                replaceChild(leaf.parent, leaf, null);
+                return Optional.of(leaf);
             }
         }
+        // TODO:  create a version that grabs the interior nodes prior to trimming start and end nodes, and removes them
+        Node<Piece> startLeaf = start.node();
+        Node<Piece> endLeaf = end.node();
 
-        int leftSubLen = (node.left != null) ? node.left.length : 0;
-        Node<Piece> removedNode = null;
+        if (start.offset < startLeaf.payload.getLength()) {
+            Piece leftPiece = new Piece(startLeaf.payload.getSource(), startLeaf.payload.getStart(), start.offset());
+            if (leftPiece.getLength() > 0) {
+                Node<Piece> leftNode = createLeafNode(leftPiece);
+                replaceChild(startLeaf.parent, startLeaf, leftNode);
+                startLeaf = leftNode;
+            } else {
+                replaceChild(startLeaf.parent, startLeaf, null);
+            }
 
-        if (position + removeLength <= leftSubLen) {
-            // deletion entirely in left subtree
-            removedNode = removeRecursive(node.left, position, removeLength);
-        } else if (position >= leftSubLen) {
-            // entirely in right subtree
-            removedNode = removeRecursive(node.right, position - leftSubLen, removeLength);
-        } else {
-
-            int removeFromLeft = leftSubLen - position;
-            Node<Piece> leftRemoved = removeRecursive(node.left, position, removeFromLeft);
-            int remaining = removeLength - removeFromLeft;
-            Node<Piece> rightRemoved = removeRecursive(node.right, 0, remaining);
-
-            removedNode = (leftRemoved != null) ? leftRemoved : rightRemoved; // in this case we'll delete the left if there was a spanning deletion
         }
 
-        recompute(node); // recalculate the node's length since children may have changed
-        Node<Piece> grandparent = node.parent;
+        int rightLen = endLeaf.payload.getLength() - end.offset();
+        if (rightLen > 0) {
+            Piece rightPiece = new Piece(endLeaf.payload.getSource(), endLeaf.payload.getStart() + end.offset(), rightLen);
+            Node<Piece> rightNode = createLeafNode(rightPiece);
+            replaceChild(endLeaf.parent, endLeaf, rightNode);
+            endLeaf = rightNode;
+        } else {
+            replaceChild(endLeaf.parent, endLeaf, null);
+        }
 
-        return removedNode;
+        Node<Piece> returnLeaf = removeBetweenLeaves(startLeaf, endLeaf);
+        bubbleRecompute(startLeaf);
+        bubbleRecompute(endLeaf);
+        return Optional.of(returnLeaf);
+
+    }
+
+    private Node<Piece> removeBetweenLeaves(Node<Piece> startLeaf, Node<Piece> endLeaf) {
+        if (startLeaf == null || endLeaf == null) throw new IllegalArgumentException("Illegal remove between leaves");
+
+        Node<Piece> curLeaf = nextLeaf(startLeaf);
+        if (curLeaf == null || curLeaf == endLeaf) return startLeaf;
+
+        while (curLeaf != null && curLeaf != endLeaf) {
+            Node<Piece> nextLeaf = nextLeaf(curLeaf);
+
+            Node<Piece> removedLeaf = curLeaf;
+            Node<Piece> parent = removedLeaf.parent;
+            replaceChild(parent, removedLeaf, null);
+
+            if (removedLeaf.isBlack()) {
+                Node<Piece> problemNode = findNodeForFixup(removedLeaf);
+                if (problemNode != null) removeFixup(problemNode);
+            }
+            curLeaf = nextLeaf;
+        }
+        return startLeaf;
+    }
+
+    private Node<Piece> leftmost(Node<Piece> node) {
+        Node<Piece> cur = node;
+        while (cur != null && !cur.isLeaf()) {
+            cur = cur.left;
+        }
+        return cur;
+    }
+
+    private Node<Piece> nextLeaf(Node<Piece> leaf) {
+        if (leaf == null) return null;
+
+        Node<Piece> p = leaf.parent;
+        if (p == null) return null;
+
+        // get the right sibling of the current left node
+        if (p.left == leaf) return leftmost(p.right);
+
+        // traverse up the tree until the next leaf node is found
+        Node<Piece> cur = leaf;
+        Node<Piece> anc = p;
+        while (anc != null && anc.right == cur) {
+            cur = anc;
+            anc = anc.parent;
+        }
+        if (anc == null) return null;
+        return leftmost(anc.right);
+    }
+
+    private Node<Piece> trimLeaf(Node<Piece> leaf, int keepStart, int keepEnd) {
+        return null;
     }
 
     public boolean isValidRedBlack() {
@@ -257,7 +339,7 @@ public class PieceTree extends RBTree<Piece> {
         return checkRedBlackProperties(root) != -1;
     }
 
-    private int checkRedBlackProperties(Node node) {
+    private int checkRedBlackProperties(Node node)  {
         if (node == null) return 0;  // Null nodes are black
 
         // Check for red-red violations
