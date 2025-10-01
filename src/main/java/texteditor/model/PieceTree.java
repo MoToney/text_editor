@@ -21,6 +21,13 @@ public class PieceTree extends RBTree<Piece> {
     }
     public PieceTree() {this(null);}
 
+    protected void setRoot(Node<Piece> node) {
+        this.root = node;
+        this.root.color = Color.BLACK;
+        this.recompute(this.root);
+        return;
+    }
+
     @Override
     protected Node<Piece> createLeafNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
@@ -63,13 +70,11 @@ public class PieceTree extends RBTree<Piece> {
             collectText(node.right, stringBuilder, originalBuffer, addBuffer);
         }
     }
-
     public String getText(String originalBuffer, StringBuilder addBuffer) {
         StringBuilder sb = new StringBuilder(treeLength());
         collectText(root, sb, originalBuffer, addBuffer);
         return sb.toString();
     }
-
     private void collectPieces(Node<Piece> node, List<Piece> out) {
         if (node == null) return;
         if (node.isLeaf()) out.add(node.payload);
