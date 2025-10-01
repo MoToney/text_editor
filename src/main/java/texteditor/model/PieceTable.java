@@ -43,9 +43,7 @@ public class PieceTable {
         Optional<PieceTree.NodeOffset> result = pieceTree.findNodeAndOffset(position);
 
         if (result.isEmpty()) {
-            pieceTree.root = pieceTree.createLeafNode(pieceToInsert);
-            pieceTree.root.color = RBTree.Color.BLACK;
-            pieceTree.recompute(pieceTree.root);
+            pieceTree.setRoot(pieceTree.createLeafNode(pieceToInsert));
             return;
         }
 
