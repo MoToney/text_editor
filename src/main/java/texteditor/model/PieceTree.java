@@ -85,7 +85,7 @@ public class PieceTree extends RBTree<Piece> {
         return out;
     }
 
-    private void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
+    void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
         Node<Piece> grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
 
         newNode.color = Color.RED;
@@ -98,7 +98,7 @@ public class PieceTree extends RBTree<Piece> {
         replaceChild(grandparent, oldNode, newParent);
     }
 
-    private void splitLeafNode(Node<Piece> oldNode, Node<Piece> newNode, int offset) {
+    void splitLeafNode(Node<Piece> oldNode, Node<Piece> newNode, int offset) {
         Node<Piece> grandparent = oldNode.parent;
 
         Piece oldPiece = oldNode.payload;
@@ -122,9 +122,9 @@ public class PieceTree extends RBTree<Piece> {
         replaceChild(grandparent, oldNode, newParent);
     }
 
-    private record NodeOffset(Node<Piece> node, int offset) {}
+    record NodeOffset(Node<Piece> node, int offset) {}
 
-    private Optional<NodeOffset> findNodeAndOffset(int position) {
+    Optional<NodeOffset> findNodeAndOffset(int position) {
         if (root == null) return Optional.empty();
         Node<Piece> node = root;
 
@@ -174,9 +174,9 @@ public class PieceTree extends RBTree<Piece> {
         }
     }
 
-    private record NodeRange(NodeOffset start, NodeOffset end) {}
+    record NodeRange(NodeOffset start, NodeOffset end) {}
 
-    private Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
+    Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
         if (root == null || removeLength <= 0) return Optional.empty();
 
         int treeLen = treeLength();
