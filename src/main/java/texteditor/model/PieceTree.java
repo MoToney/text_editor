@@ -1,7 +1,5 @@
 package texteditor.model;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -27,30 +25,37 @@ public class PieceTree extends RBTree<Piece> {
         this.recompute(this.root);
         return;
     }
+
     @Override
     protected Node<Piece> createLeafNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
         recompute(node);
         return node;
     }
+
     @Override
     protected Node<Piece> createInternalNode(Node<Piece> left, Node<Piece> right) {
         PieceNode node = new PieceNode(left, right);
         recompute(node);
         return node;
     }
+
     @Override
     protected void recompute(Node<Piece> node) {
         if (node == null) return;
 
+        // PieceNode pieceNode = (PieceNode) node;
+
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
+            // pieceNode.newlineCount = (node.payload != null) ? node.payload.getLineCount : 0;
         } else {
             int leftLen = (node.left != null) ? node.left.length : 0;
             int rightLen = (node.right != null) ? node.right.length : 0;
             node.length = leftLen + rightLen;
         }
     }
+
     @Override
     protected int payloadLength(Piece piece) {
         return (piece != null) ? piece.getLength() : 0;
@@ -75,8 +80,8 @@ public class PieceTree extends RBTree<Piece> {
         Piece oldPiece = oldNode.payload;
         int oldLength = oldPiece.getLength();
 
-        Piece leftPiece = new Piece(oldPiece.getSource(), oldPiece.getStart(), offset);
-        Piece rightPiece = new Piece(oldPiece.getSource(), oldPiece.getStart() + offset, oldLength - offset);
+        Piece leftPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart(), offset);
+        Piece rightPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart() + offset, oldLength - offset);
 
         Node<Piece>leftNode = createLeafNode(leftPiece);
         Node<Piece> rightNode = createLeafNode(rightPiece);
@@ -181,8 +186,8 @@ public class PieceTree extends RBTree<Piece> {
             int rightLen = piece.getLength() - end.offset();
 
             if (leftLen > 0 && rightLen > 0) {
-                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
-                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
 
                 Node<Piece> leftNode = createLeafNode(leftPiece);
                 Node<Piece> rightNode = createLeafNode(rightPiece);
@@ -193,7 +198,7 @@ public class PieceTree extends RBTree<Piece> {
                 replaceChild(leaf.parent, leaf, newParent);
                 return Optional.empty();
             } else if (leftLen > 0) {
-                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
+                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
                 Node<Piece> leftNode = createLeafNode(leftPiece);
                 recompute(leftNode);
 
@@ -203,7 +208,7 @@ public class PieceTree extends RBTree<Piece> {
                 return Optional.empty();
 
             } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
                 Node<Piece> rightNode = createLeafNode(rightPiece);
                 recompute(rightNode);
 
@@ -221,7 +226,7 @@ public class PieceTree extends RBTree<Piece> {
         Node<Piece> endLeaf = end.node();
 
         if (start.offset < startLeaf.payload.getLength()) {
-            Piece leftPiece = new Piece(startLeaf.payload.getSource(), startLeaf.payload.getStart(), start.offset());
+            Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
             if (leftPiece.getLength() > 0) {
                 Node<Piece> leftNode = createLeafNode(leftPiece);
                 replaceChild(startLeaf.parent, startLeaf, leftNode);
@@ -234,7 +239,7 @@ public class PieceTree extends RBTree<Piece> {
 
         int rightLen = endLeaf.payload.getLength() - end.offset();
         if (rightLen > 0) {
-            Piece rightPiece = new Piece(endLeaf.payload.getSource(), endLeaf.payload.getStart() + end.offset(), rightLen);
+            Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
             Node<Piece> rightNode = createLeafNode(rightPiece);
             replaceChild(endLeaf.parent, endLeaf, rightNode);
             endLeaf = rightNode;

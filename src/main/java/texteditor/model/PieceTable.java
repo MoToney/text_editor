@@ -4,22 +4,22 @@ import java.util.*;
 
 public class PieceTable {
 
-    private final String originalBuffer;
-    private final StringBuilder addBuffer;
+    private final OriginalBuffer originalBuffer;
+    private final AddBuffer addBuffer;
     // private final List<Piece> pieces;
     private final PieceTree pieceTree;
     private final List<Line> lineCache;
     private int totalLength;
 
     public PieceTable(String originalText) {
-        this.originalBuffer = originalText;
-        this.addBuffer = new StringBuilder();
+        this.originalBuffer = new OriginalBuffer(originalText);
+        this.addBuffer = new AddBuffer();
         // this.pieces = new ArrayList<>();
         this.lineCache = new ArrayList<>();
         this.pieceTree = new PieceTree();
 
         if (!originalText.isEmpty()) {
-            Piece piece = new Piece(Piece.BufferType.ORIGINAL, 0, originalText.length());
+            Piece piece = new Piece(originalBuffer, 0, originalText.length());
             pieceTree.insert(0, piece);
             this.totalLength = piece.getLength();
         }
@@ -32,7 +32,7 @@ public class PieceTable {
 
         int textLength = text.length();
         addBuffer.append(text);
-        Piece newPiece = new Piece(Piece.BufferType.ADD, addBuffer.length() - textLength, textLength);
+        Piece newPiece = new Piece(addBuffer, addBuffer.length() - textLength, textLength);
 
         insertHelper(position, newPiece);
         totalLength += textLength;
@@ -100,8 +100,8 @@ public class PieceTable {
             int rightLen = piece.getLength() - end.offset();
 
             if (leftLen > 0 && rightLen > 0) {
-                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
-                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
 
                 RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
                 RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
@@ -112,7 +112,7 @@ public class PieceTable {
                 pieceTree.replaceChild(leaf.parent, leaf, newParent);
                 return;
             } else if (leftLen > 0) {
-                Piece leftPiece = new Piece(piece.getSource(), piece.getStart(), leftLen);
+                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
                 RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
                 pieceTree.recompute(leftNode);
 
@@ -121,7 +121,7 @@ public class PieceTable {
                 pieceTree.replaceChild(leaf.parent, leaf, leftNode);
                 return;
             } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(piece.getSource(), piece.getStart() + end.offset(), rightLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
                 RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
                 pieceTree.recompute(rightNode);
 
@@ -143,7 +143,7 @@ public class PieceTable {
         RBTree.Node<Piece> endLeaf = end.node();
 
         if (start.offset() < startLeaf.payload.getLength()) {
-            Piece leftPiece = new Piece(startLeaf.payload.getSource(), startLeaf.payload.getStart(), start.offset());
+            Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
             if (leftPiece.getLength() > 0) {
                 RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
                 pieceTree.replaceChild(startLeaf.parent, startLeaf, leftNode);
@@ -156,7 +156,7 @@ public class PieceTable {
 
         int rightLen = endLeaf.payload.getLength() - end.offset();
         if (rightLen > 0) {
-            Piece rightPiece = new Piece(endLeaf.payload.getSource(), endLeaf.payload.getStart() + end.offset(), rightLen);
+            Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
             RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
             pieceTree.replaceChild(endLeaf.parent, endLeaf, rightNode);
             endLeaf = rightNode;
@@ -182,7 +182,7 @@ public class PieceTable {
     private void getTextHelper(RBTree.Node<Piece> node, StringBuilder stringBuilder) {
         if (node == null) {return;}
         if (node.isLeaf()) {
-            String text = node.payload.getText(originalBuffer, addBuffer);
+            String text = node.payload.getText();
             stringBuilder.append(text);
         } else {
             getTextHelper(node.left, stringBuilder);
@@ -198,6 +198,7 @@ public class PieceTable {
             collectPieces(node.right, out);
         }
     }
+
     public List<Piece> toPieceList() {
         List<Piece> out = new ArrayList<>();
         collectPieces(pieceTree.root, out);
@@ -220,7 +221,7 @@ public class PieceTable {
 
         for (int pieceIndex = 0; pieceIndex < pieces.size(); pieceIndex++) {
             Piece piece = pieces.get(pieceIndex);
-            List<Integer> lineStarts = piece.getLineStarts(originalBuffer, addBuffer);
+            List<Integer> lineStarts = piece.getLineStarts();
 
             if (lineStarts.size() <= 1) {
                 currentLineLength += piece.getLength();
@@ -279,7 +280,7 @@ public class PieceTable {
 
         while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
             Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = (p.getSource() == Piece.BufferType.ORIGINAL) ? originalBuffer : addBuffer.toString();
+            String bufferContent = p.getBuffer().toString();
             int charsToRead = Math.min(remainingLength, p.getLength() - offsetInPiece);
 
             lineBuilder.append(bufferContent, p.getStart() + offsetInPiece, p.getStart() + offsetInPiece + charsToRead);
