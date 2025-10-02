@@ -7,7 +7,7 @@ public class PieceTable {
     private final OriginalBuffer originalBuffer;
     private final AddBuffer addBuffer;
     // private final List<Piece> pieces;
-    private final PieceTree pieceTree;
+    private final PieceTree tree;
     private final List<Line> lineCache;
     private int totalLength;
 
@@ -16,11 +16,11 @@ public class PieceTable {
         this.addBuffer = new AddBuffer();
         // this.pieces = new ArrayList<>();
         this.lineCache = new ArrayList<>();
-        this.pieceTree = new PieceTree();
+        this.tree = new PieceTree();
 
         if (!originalText.isEmpty()) {
             Piece piece = new Piece(originalBuffer, 0, originalText.length());
-            pieceTree.insert(0, piece);
+            tree.insert(0, piece);
             this.totalLength = piece.getLength();
         }
 
@@ -40,10 +40,10 @@ public class PieceTable {
     }
 
     private void insertHelper(int position, Piece pieceToInsert) {
-        Optional<PieceTree.NodeOffset> result = pieceTree.findNodeAndOffset(position);
+        Optional<PieceTree.NodeOffset> result = tree.findNodeAndOffset(position);
 
         if (result.isEmpty()) {
-            pieceTree.setRoot(pieceTree.createLeafNode(pieceToInsert));
+            tree.setRoot(tree.createLeafNode(pieceToInsert));
             return;
         }
 
@@ -52,18 +52,18 @@ public class PieceTable {
 
         Piece oldPiece = node.payload;
         if (offset == 0) {
-            RBTree.Node<Piece> newLeaf = pieceTree.createLeafNode(pieceToInsert);
-            pieceTree.addSiblingNode(node, newLeaf, true);
-            pieceTree.insertFixup(newLeaf);
+            RBTree.Node<Piece> newLeaf = tree.createLeafNode(pieceToInsert);
+            tree.addSiblingNode(node, newLeaf, true);
+            tree.insertFixup(newLeaf);
         } else if (offset == oldPiece.getLength()) {
             // new piece after current leaf
-            RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
-            pieceTree.addSiblingNode(node, newNode, false);
-            pieceTree.insertFixup(newNode);
+            RBTree.Node<Piece> newNode = tree.createLeafNode(pieceToInsert);
+            tree.addSiblingNode(node, newNode, false);
+            tree.insertFixup(newNode);
         } else {
-            RBTree.Node<Piece> newNode = pieceTree.createLeafNode(pieceToInsert);
-            pieceTree.splitLeafNode(node, newNode, offset);
-            pieceTree.insertFixup(newNode);
+            RBTree.Node<Piece> newNode = tree.createLeafNode(pieceToInsert);
+            tree.splitLeafNode(node, newNode, offset);
+            tree.insertFixup(newNode);
         }
     }
 
@@ -82,9 +82,9 @@ public class PieceTable {
 
     private void removeHelper(int position, int removeLength) {
         if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
-        if (pieceTree.root == null) throw new IllegalStateException("Tree is empty");
+        if (tree.root == null) throw new IllegalStateException("Tree is empty");
 
-        Optional<PieceTree.NodeRange> result = pieceTree.findNodeAndRange(position, removeLength);
+        Optional<PieceTree.NodeRange> result = tree.findNodeAndRange(position, removeLength);
         if (result.isEmpty()) {
             throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
         }
@@ -103,37 +103,37 @@ public class PieceTable {
                 Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
                 Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
 
-                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
-                RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
-                RBTree.Node<Piece> newParent = pieceTree.createInternalNode(leftNode, rightNode);
+                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
+                RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
+                RBTree.Node<Piece> newParent = tree.createInternalNode(leftNode, rightNode);
 
                 newParent.color = leaf.color;
 
-                pieceTree.replaceChild(leaf.parent, leaf, newParent);
+                tree.replaceChild(leaf.parent, leaf, newParent);
                 return;
             } else if (leftLen > 0) {
                 Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
-                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
-                pieceTree.recompute(leftNode);
+                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
+                tree.recompute(leftNode);
 
                 leftNode.color = leaf.color;
 
-                pieceTree.replaceChild(leaf.parent, leaf, leftNode);
+                tree.replaceChild(leaf.parent, leaf, leftNode);
                 return;
             } else if (rightLen > 0) {
                 Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
-                RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
-                pieceTree.recompute(rightNode);
+                RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
+                tree.recompute(rightNode);
 
                 rightNode.color = leaf.color;
 
-                pieceTree.replaceChild(leaf.parent, leaf, rightNode);
+                tree.replaceChild(leaf.parent, leaf, rightNode);
                 return;
             } else {
-                pieceTree.replaceChild(leaf.parent, leaf, null);
+                tree.replaceChild(leaf.parent, leaf, null);
                 if (leaf.isBlack()) {
-                    RBTree.Node<Piece> problemNode = pieceTree.findNodeForFixup(leaf);
-                    if (problemNode != null) pieceTree.removeFixup(problemNode);
+                    RBTree.Node<Piece> problemNode = tree.findNodeForFixup(leaf);
+                    if (problemNode != null) tree.removeFixup(problemNode);
                 }
                 return;
             }
@@ -145,11 +145,11 @@ public class PieceTable {
         if (start.offset() < startLeaf.payload.getLength()) {
             Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
             if (leftPiece.getLength() > 0) {
-                RBTree.Node<Piece> leftNode = pieceTree.createLeafNode(leftPiece);
-                pieceTree.replaceChild(startLeaf.parent, startLeaf, leftNode);
+                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
+                tree.replaceChild(startLeaf.parent, startLeaf, leftNode);
                 startLeaf = leftNode;
             } else {
-                pieceTree.replaceChild(startLeaf.parent, startLeaf, null);
+                tree.replaceChild(startLeaf.parent, startLeaf, null);
             }
 
         }
@@ -157,25 +157,25 @@ public class PieceTable {
         int rightLen = endLeaf.payload.getLength() - end.offset();
         if (rightLen > 0) {
             Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
-            RBTree.Node<Piece> rightNode = pieceTree.createLeafNode(rightPiece);
-            pieceTree.replaceChild(endLeaf.parent, endLeaf, rightNode);
+            RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
+            tree.replaceChild(endLeaf.parent, endLeaf, rightNode);
             endLeaf = rightNode;
         } else {
-            pieceTree.replaceChild(endLeaf.parent, endLeaf, null);
+            tree.replaceChild(endLeaf.parent, endLeaf, null);
         }
 
-        RBTree.Node<Piece> returnLeaf = pieceTree.removeBetweenLeaves(startLeaf, endLeaf);
-        pieceTree.bubbleRecompute(startLeaf);
-        pieceTree.bubbleRecompute(endLeaf);
+        RBTree.Node<Piece> returnLeaf = tree.removeBetweenLeaves(startLeaf, endLeaf);
+        tree.bubbleRecompute(startLeaf);
+        tree.bubbleRecompute(endLeaf);
         if (returnLeaf.isBlack()) {
-            RBTree.Node<Piece> problemNode = pieceTree.findNodeForFixup(returnLeaf);
-            if (problemNode != null) pieceTree.removeFixup(problemNode);
+            RBTree.Node<Piece> problemNode = tree.findNodeForFixup(returnLeaf);
+            if (problemNode != null) tree.removeFixup(problemNode);
         }
     }
 
     public String getText() {
-        StringBuilder sb = new StringBuilder(pieceTree.treeLength());
-        getTextHelper(pieceTree.root, sb);
+        StringBuilder sb = new StringBuilder(tree.treeLength());
+        getTextHelper(tree.root, sb);
         return sb.toString();
     }
 
@@ -201,11 +201,11 @@ public class PieceTable {
 
     public List<Piece> toPieceList() {
         List<Piece> out = new ArrayList<>();
-        collectPieces(pieceTree.root, out);
+        collectPieces(tree.root, out);
         return out;
     }
 
-    public int getTreeLength() { return pieceTree.treeLength(); }
+    public int getTreeLength() { return tree.treeLength(); }
 
     private void rebuildLineCache() {
         List<Piece> pieces = toPieceList();
