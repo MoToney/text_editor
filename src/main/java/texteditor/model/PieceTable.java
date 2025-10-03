@@ -20,7 +20,7 @@ public class PieceTable {
 
         if (!originalText.isEmpty()) {
             Piece piece = new Piece(originalBuffer, 0, originalText.length());
-            tree.insert(0, piece);
+            insertHelper(0, piece);
             this.totalLength = piece.getLength();
         }
 

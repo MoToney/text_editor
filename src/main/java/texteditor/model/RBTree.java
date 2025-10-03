@@ -51,7 +51,6 @@ public abstract class RBTree<T> {
                     length
             );
         }
-
     }
 
     protected Node<T> root;
@@ -67,10 +66,7 @@ public abstract class RBTree<T> {
         return n;
     }
 
-
     protected abstract void recompute(Node<T> node);
-
-    protected abstract int payloadLength(T payload);
 
     protected void bubbleRecompute(Node<T> start) {
         Node<T> curr = start;
@@ -146,8 +142,6 @@ public abstract class RBTree<T> {
         bubbleRecompute(y.parent);
     }
 
-    protected abstract Node<T> insertRecursive(int position, T payload);
-
     protected void insertFixup(Node<T> node) {
         while (node != null && node.parent != null && node.parent.isRed()) {
             Node<T> parent = node.parent;
@@ -205,27 +199,6 @@ public abstract class RBTree<T> {
         }
         if (root != null) root.color = Color.BLACK;
     }
-
-    protected void insert(int position, T payload) {
-        if (payload == null || payloadLength(payload) == 0) return;
-
-        if (position < 0) position = 0;
-        int treeLength = (root != null) ? root.length : 0;
-        if (position > treeLength) position = treeLength;
-
-        if (root == null) {
-            root = new Node<>(payload);
-            root.color = Color.BLACK;
-            recompute(root);
-            return;
-        }
-
-        Node<T> insertedNode = insertRecursive(position, payload);
-
-        insertFixup(insertedNode);
-    }
-
-    protected abstract Optional<Node<T>> removeRecursive(int position, int removeLength);
 
     protected Node<T> findNodeForFixup(Node<T> removedNode) {
         // The removed node's parent should now point to whatever replaced it
@@ -314,24 +287,5 @@ public abstract class RBTree<T> {
             }
         }
         problemNode.color = Color.BLACK;
-    }
-
-    protected void remove(int position, int removeLength) {
-        if (removeLength <= 0 || root == null) return;
-
-        int treeLength = root.length;
-        if (position < 0) position = 0;
-        if (position >= treeLength) return; // nothing to remove
-        if (position + removeLength > treeLength) {
-            removeLength = treeLength - position; // trim to valid range
-        }
-
-        Optional<Node<T>> resultNode = removeRecursive(position, removeLength);
-        if (!resultNode.isEmpty() && resultNode.get().isBlack()) {
-            Node<T> problemNode = findNodeForFixup(resultNode.get());
-            if (problemNode != null) {
-                removeFixup(problemNode);
-            }
-        }
     }
 }

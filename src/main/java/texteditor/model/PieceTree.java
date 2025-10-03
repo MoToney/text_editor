@@ -44,7 +44,7 @@ public class PieceTree extends RBTree<Piece> {
     protected void recompute(Node<Piece> node) {
         if (node == null) return;
 
-        // PieceNode pieceNode = (PieceNode) node;
+        PieceNode pieceNode = (PieceNode) node;
 
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
@@ -56,10 +56,6 @@ public class PieceTree extends RBTree<Piece> {
         }
     }
 
-    @Override
-    protected int payloadLength(Piece piece) {
-        return (piece != null) ? piece.getLength() : 0;
-    }
 
     void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
         Node<Piece> grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
@@ -117,38 +113,6 @@ public class PieceTree extends RBTree<Piece> {
         return Optional.of(new NodeOffset(node, position));
     }
 
-    @Override
-    protected Node<Piece> insertRecursive(int position, Piece pieceToInsert) {
-        Optional<NodeOffset> result = findNodeAndOffset(position);
-
-        if (result.isEmpty()) {
-            this.root = createLeafNode(pieceToInsert);
-            this.root.color = Color.BLACK;
-            return this.root;
-        }
-
-        NodeOffset nodeAndOffset = result.get();
-        Node <Piece> node = nodeAndOffset.node;
-        int offset = nodeAndOffset.offset;
-
-        Piece old = node.payload;
-        int oldLen = old.getLength();
-        if (offset == 0) {
-            Node<Piece> newLeaf = createLeafNode(pieceToInsert);
-            addSiblingNode(node, newLeaf, true);
-            return newLeaf;
-        } else if (offset == oldLen) {
-            // new piece after current leaf
-            Node<Piece> newNode = createLeafNode(pieceToInsert);
-            addSiblingNode(node, newNode, false);
-            return newNode;
-        } else {
-            Node<Piece> newNode = createLeafNode(pieceToInsert);
-            splitLeafNode(node, newNode, offset);
-            return newNode;
-        }
-    }
-
     record NodeRange(NodeOffset start, NodeOffset end) {}
     Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
         if (root == null || removeLength <= 0) return Optional.empty();
@@ -163,95 +127,6 @@ public class PieceTree extends RBTree<Piece> {
         NodeOffset end = findNodeAndOffset(endPos).orElse(null);
 
         return (start != null && end != null) ? Optional.of(new NodeRange(start, end)) : Optional.empty();
-    }
-
-    @Override
-    protected Optional<Node<Piece>> removeRecursive(int position, int removeLength) {
-        if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
-        if (root == null) throw new IllegalStateException("Tree is empty");
-
-        Optional<NodeRange> result = findNodeAndRange(position, removeLength);
-        if (result.isEmpty()) {
-            throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
-        }
-
-        NodeOffset start = result.get().start();
-        NodeOffset end = result.get().end();
-
-        if (start.node() == end.node()) {
-            Node<Piece> leaf = start.node;
-            Piece piece = leaf.payload;
-
-            int leftLen = start.offset();
-            int rightLen = piece.getLength() - end.offset();
-
-            if (leftLen > 0 && rightLen > 0) {
-                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
-                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
-
-                Node<Piece> leftNode = createLeafNode(leftPiece);
-                Node<Piece> rightNode = createLeafNode(rightPiece);
-                Node<Piece> newParent = createInternalNode(leftNode, rightNode);
-
-                newParent.color = leaf.color;
-
-                replaceChild(leaf.parent, leaf, newParent);
-                return Optional.empty();
-            } else if (leftLen > 0) {
-                Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
-                Node<Piece> leftNode = createLeafNode(leftPiece);
-                recompute(leftNode);
-
-                leftNode.color = leaf.color;
-
-                replaceChild(leaf.parent, leaf, leftNode);
-                return Optional.empty();
-
-            } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
-                Node<Piece> rightNode = createLeafNode(rightPiece);
-                recompute(rightNode);
-
-                rightNode.color = leaf.color;
-
-                replaceChild(leaf.parent, leaf, rightNode);
-                return Optional.empty();
-            } else {
-                replaceChild(leaf.parent, leaf, null);
-                return Optional.of(leaf);
-            }
-        }
-        // TODO:  create a version that grabs the interior nodes prior to trimming start and end nodes, and removes them
-        Node<Piece> startLeaf = start.node();
-        Node<Piece> endLeaf = end.node();
-
-        if (start.offset < startLeaf.payload.getLength()) {
-            Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
-            if (leftPiece.getLength() > 0) {
-                Node<Piece> leftNode = createLeafNode(leftPiece);
-                replaceChild(startLeaf.parent, startLeaf, leftNode);
-                startLeaf = leftNode;
-            } else {
-                replaceChild(startLeaf.parent, startLeaf, null);
-            }
-
-        }
-
-        int rightLen = endLeaf.payload.getLength() - end.offset();
-        if (rightLen > 0) {
-            Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
-            Node<Piece> rightNode = createLeafNode(rightPiece);
-            replaceChild(endLeaf.parent, endLeaf, rightNode);
-            endLeaf = rightNode;
-        } else {
-            replaceChild(endLeaf.parent, endLeaf, null);
-        }
-
-        Node<Piece> returnLeaf = removeBetweenLeaves(startLeaf, endLeaf);
-        bubbleRecompute(startLeaf);
-        bubbleRecompute(endLeaf);
-        return Optional.of(returnLeaf);
-
     }
 
     Node<Piece> removeBetweenLeaves(Node<Piece> startLeaf, Node<Piece> endLeaf) {
