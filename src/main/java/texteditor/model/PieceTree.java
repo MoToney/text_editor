@@ -3,12 +3,19 @@ package texteditor.model;
 import java.util.Objects;
 import java.util.Optional;
 
-public class PieceTree extends RBTree<Piece> {
+public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
-    protected static class PieceNode extends Node<Piece> {
+    protected static class PieceNode extends Node<PieceNode, Piece> {
         int newlineCount;
         PieceNode(Piece payload) { super(payload); }
-        PieceNode(Node<Piece> left, Node<Piece> right) {super(left, right);}
+        PieceNode(PieceNode left, PieceNode right) {
+            super(left, right);
+            if (left != null) left.parent = this;
+            if (right != null) right.parent = this;
+        }
+
+        @Override
+        public boolean isLeaf() { return payload != null; }
     }
 
     public PieceTree(Piece initial) {
@@ -19,32 +26,29 @@ public class PieceTree extends RBTree<Piece> {
     }
     public PieceTree() {this(null);}
 
-    protected void setRoot(Node<Piece> node) {
+    protected void setRoot(PieceNode node) {
         this.root = node;
         this.root.color = Color.BLACK;
-        this.recompute(this.root);
-        return;
+        recompute(this.root);
     }
 
     @Override
-    protected Node<Piece> createLeafNode(Piece payload) {
+    protected PieceNode createLeafNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
         recompute(node);
         return node;
     }
 
     @Override
-    protected Node<Piece> createInternalNode(Node<Piece> left, Node<Piece> right) {
+    protected PieceNode createInternalNode(PieceNode left, PieceNode right) {
         PieceNode node = new PieceNode(left, right);
         recompute(node);
         return node;
     }
 
     @Override
-    protected void recompute(Node<Piece> node) {
+    protected void recompute(PieceNode node) {
         if (node == null) return;
-
-        PieceNode pieceNode = (PieceNode) node;
 
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
@@ -57,21 +61,21 @@ public class PieceTree extends RBTree<Piece> {
     }
 
 
-    void addSiblingNode(Node<Piece> oldNode, Node<Piece> newNode, boolean newOnLeft) {
-        Node<Piece> grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
+    void addSiblingNode(PieceNode oldNode, PieceNode newNode, boolean newOnLeft) {
+        PieceNode grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
 
         newNode.color = Color.RED;
         Color newParentColor = oldNode.color;
         oldNode.color = Color.RED;
 
 
-        Node<Piece> newParent = newOnLeft ? createInternalNode(newNode, oldNode) : createInternalNode(oldNode, newNode);
+        PieceNode newParent = newOnLeft ? createInternalNode(newNode, oldNode) : createInternalNode(oldNode, newNode);
         newParent.color = newParentColor;
         replaceChild(grandparent, oldNode, newParent);
     }
 
-    void splitLeafNode(Node<Piece> oldNode, Node<Piece> newNode, int offset) {
-        Node<Piece> grandparent = oldNode.parent;
+    void splitLeafNode(PieceNode oldNode, PieceNode newNode, int offset) {
+        PieceNode grandparent = oldNode.parent;
 
         Piece oldPiece = oldNode.payload;
         int oldLength = oldPiece.getLength();
@@ -79,25 +83,25 @@ public class PieceTree extends RBTree<Piece> {
         Piece leftPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart(), offset);
         Piece rightPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart() + offset, oldLength - offset);
 
-        Node<Piece>leftNode = createLeafNode(leftPiece);
-        Node<Piece> rightNode = createLeafNode(rightPiece);
+        PieceNode leftNode = createLeafNode(leftPiece);
+        PieceNode rightNode = createLeafNode(rightPiece);
 
         leftNode.color = Color.RED;
         rightNode.color = Color.RED;
         newNode.color = Color.RED;
 
-        Node<Piece> rightSubTree = createInternalNode(newNode, rightNode);
+        PieceNode rightSubTree = createInternalNode(newNode, rightNode);
         rightSubTree.color = Color.RED;
 
-        Node<Piece> newParent = createInternalNode(leftNode, rightSubTree);
+        PieceNode newParent = createInternalNode(leftNode, rightSubTree);
         newParent.color = oldNode.color;
         replaceChild(grandparent, oldNode, newParent);
     }
 
-    record NodeOffset(Node<Piece> node, int offset) {}
+    record NodeOffset(PieceNode node, int offset) {}
     Optional<NodeOffset> findNodeAndOffset(int position) {
         if (root == null) return Optional.empty();
-        Node<Piece> node = root;
+        PieceNode node = root;
 
         position = Math.min(treeLength(), Math.max(position, 0));
 
@@ -129,21 +133,21 @@ public class PieceTree extends RBTree<Piece> {
         return (start != null && end != null) ? Optional.of(new NodeRange(start, end)) : Optional.empty();
     }
 
-    Node<Piece> removeBetweenLeaves(Node<Piece> startLeaf, Node<Piece> endLeaf) {
+    PieceNode removeBetweenLeaves(PieceNode startLeaf, PieceNode endLeaf) {
         if (startLeaf == null || endLeaf == null) throw new IllegalArgumentException("Illegal remove between leaves");
 
-        Node<Piece> curLeaf = nextLeaf(startLeaf);
+        PieceNode curLeaf = nextLeaf(startLeaf);
         if (curLeaf == null || curLeaf == endLeaf) return startLeaf;
 
         while (curLeaf != null && curLeaf != endLeaf) {
-            Node<Piece> nextLeaf = nextLeaf(curLeaf);
+            PieceNode nextLeaf = nextLeaf(curLeaf);
 
-            Node<Piece> removedLeaf = curLeaf;
-            Node<Piece> parent = removedLeaf.parent;
+            PieceNode removedLeaf = curLeaf;
+            PieceNode parent = removedLeaf.parent;
             replaceChild(parent, removedLeaf, null);
 
             if (removedLeaf.isBlack()) {
-                Node<Piece> problemNode = findNodeForFixup(removedLeaf);
+                PieceNode problemNode = findNodeForFixup(removedLeaf);
                 if (problemNode != null) removeFixup(problemNode);
             }
             curLeaf = nextLeaf;
@@ -151,26 +155,26 @@ public class PieceTree extends RBTree<Piece> {
         return startLeaf;
     }
 
-    private Node<Piece> leftmost(Node<Piece> node) {
-        Node<Piece> cur = node;
+    private PieceNode leftmost(PieceNode node) {
+        PieceNode cur = node;
         while (cur != null && !cur.isLeaf()) {
             cur = cur.left;
         }
         return cur;
     }
 
-    private Node<Piece> nextLeaf(Node<Piece> leaf) {
+    private PieceNode nextLeaf(PieceNode leaf) {
         if (leaf == null) return null;
 
-        Node<Piece> p = leaf.parent;
+        PieceNode p = leaf.parent;
         if (p == null) return null;
 
         // get the right sibling of the current left node
         if (p.left == leaf) return leftmost(p.right);
 
         // traverse up the tree until the next leaf node is found
-        Node<Piece> cur = leaf;
-        Node<Piece> anc = p;
+        PieceNode cur = leaf;
+        PieceNode anc = p;
         while (anc != null && anc.right == cur) {
             cur = anc;
             anc = anc.parent;

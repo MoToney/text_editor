@@ -2,46 +2,40 @@ package texteditor.model;
 
 import java.util.Optional;
 
-public abstract class RBTree<T> {
+public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
     enum Color {RED, BLACK}
 
-    protected static class Node<T> {
-        T payload;
-        Node<T> left, right, parent;
+    protected abstract static class Node<N extends RBTree.Node<N,P>, P> {
+        P payload;
+        N left, right, parent;
         int length;
         Color color;
 
-        public Node(T payload) {
+        protected Node(P payload) {
             this.payload = payload;
             this.left = this.right = this.parent = null;
             this.color = Color.RED;
-
         }
 
-        public Node(Node<T> left, Node<T> right) {
+        protected Node(N left, N right) {
             this.payload = null;
             this.left = left;
             this.right = right;
             this.parent = null;
-            if (left != null) left.parent = this;
-            if (right != null) right.parent = this;
             this.color = Color.BLACK;
-
         }
 
-        boolean isLeaf() {
-            return payload != null;
-        }
-
-        boolean isRed() {
+        protected boolean isRed() {
             return color == Color.RED;
         }
 
-        boolean isBlack() {
+        protected boolean isBlack() {
             return color == Color.BLACK;
         }
 
-        @Override
+        protected abstract boolean isLeaf();
+
+        /*@Override
         public String toString() {
             String role =  (isLeaf()) ? "L" : "I";
             return String.format(
@@ -51,25 +45,19 @@ public abstract class RBTree<T> {
                     length
             );
         }
+
+         */
     }
 
-    protected Node<T> root;
+    protected N root;
 
-    protected Node<T> createLeafNode(T payload) {
-        Node<T> n = new Node<>(payload);
-        recompute(n);
-        return n;
-    }
-    protected Node<T> createInternalNode(Node<T> left, Node<T> right) {
-        Node<T> n = new Node<>(left, right);
-        recompute(n);
-        return n;
-    }
+    protected abstract N createLeafNode(P payload);
+    protected abstract N createInternalNode(N left, N right);
 
-    protected abstract void recompute(Node<T> node);
+    protected abstract void recompute(N node);
 
-    protected void bubbleRecompute(Node<T> start) {
-        Node<T> curr = start;
+    protected void bubbleRecompute(N start) {
+        N curr = start;
         while (curr != null) {
             recompute(curr);
             curr = curr.parent;
@@ -80,7 +68,7 @@ public abstract class RBTree<T> {
         return (root != null) ? root.length : 0;
     }
 
-    protected void replaceChild(Node<T> parent, Node<T> oldChild, Node<T> newChild) {
+    protected void replaceChild(N parent, N oldChild, N newChild) {
         if (parent == newChild) {
             throw new IllegalStateException("Attempted to set parent as its own child");
         }
@@ -97,16 +85,16 @@ public abstract class RBTree<T> {
         bubbleRecompute(newChild != null ? newChild : parent);
     }
 
-    protected void rotateLeft(Node<T> x) {
+    protected void rotateLeft(N x) {
         if (x == null || x.right == null) return;
-        Node<T> y = x.right;
+        N y = x.right;
 
         // 1) move y.left to x.right
         x.right = y.left;
         if (y.left != null) y.left.parent = x;
 
         // 2) attach y to x.parent
-        Node<T> xParent = x.parent;
+        N xParent = x.parent;
         y.parent = xParent;
         if (xParent == null) root = y;
         else if (xParent.left == x) xParent.left = y;
@@ -122,13 +110,13 @@ public abstract class RBTree<T> {
         bubbleRecompute(y.parent);
     }
 
-    protected void rotateRight(Node<T> x) {
+    protected void rotateRight(N x) {
         if (x == null || x.left == null) return;
-        Node<T> y = x.left;
+        N y = x.left;
         x.left = y.right;
         if (y.right != null) y.right.parent = x;
 
-        Node<T> xParent = x.parent;
+        N xParent = x.parent;
         y.parent = xParent;
         if (xParent == null) root = y;
         else if (xParent.left == x) xParent.left = y;
@@ -142,16 +130,16 @@ public abstract class RBTree<T> {
         bubbleRecompute(y.parent);
     }
 
-    protected void insertFixup(Node<T> node) {
+    protected void insertFixup(N node) {
         while (node != null && node.parent != null && node.parent.isRed()) {
-            Node<T> parent = node.parent;
-            Node<T> grandparent = parent.parent;
+            N parent = node.parent;
+            N grandparent = parent.parent;
 
             if (grandparent == null) break;
 
             if (parent == grandparent.left) {
                 // Parent is a left child
-                Node<T> uncle = grandparent.right;
+                N uncle = grandparent.right;
 
                 if (uncle != null && uncle.isRed()) {
                     // Case 1: Uncle is red - just recolor
@@ -175,7 +163,7 @@ public abstract class RBTree<T> {
                 }
             } else {
                 // Parent is a right child - mirror image of above
-                Node<T> uncle = grandparent.left;
+                N uncle = grandparent.left;
 
                 if (uncle != null && uncle.isRed()) {
                     parent.color = Color.BLACK;
@@ -200,9 +188,9 @@ public abstract class RBTree<T> {
         if (root != null) root.color = Color.BLACK;
     }
 
-    protected Node<T> findNodeForFixup(Node<T> removedNode) {
+    protected N findNodeForFixup(N removedNode) {
         // The removed node's parent should now point to whatever replaced it
-        Node<T> parent = removedNode.parent;
+        N parent = removedNode.parent;
         if (parent == null) {
             // Root was removed, new root (if any) is the replacement
             return root;
@@ -224,14 +212,14 @@ public abstract class RBTree<T> {
         return null;
     }
 
-    protected void removeFixup(Node<T> problemNode) {
+    protected void removeFixup(N problemNode) {
         if (problemNode == null) {
             throw new IllegalArgumentException("Node not found");
         }
 
         while (problemNode != root && problemNode.isBlack()) {
             if (problemNode == problemNode.parent.left) {
-                Node<T> sibling = problemNode.parent.right;
+                N sibling = problemNode.parent.right;
 
                 if (sibling.isRed()) {
                     sibling.color = problemNode.parent.color;
@@ -258,7 +246,7 @@ public abstract class RBTree<T> {
                     problemNode = root;
                 }
             } else {
-                Node<T> sibling = problemNode.parent.left;
+                N sibling = problemNode.parent.left;
 
                 if (sibling.isRed()) {
                     sibling.color = problemNode.parent.color;

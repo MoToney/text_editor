@@ -47,21 +47,21 @@ public class PieceTable {
             return;
         }
 
-        RBTree.Node<Piece> node = result.get().node();
+        PieceTree.PieceNode node = result.get().node();
         int offset = result.get().offset();
 
         Piece oldPiece = node.payload;
         if (offset == 0) {
-            RBTree.Node<Piece> newLeaf = tree.createLeafNode(pieceToInsert);
+            PieceTree.PieceNode newLeaf = tree.createLeafNode(pieceToInsert);
             tree.addSiblingNode(node, newLeaf, true);
             tree.insertFixup(newLeaf);
         } else if (offset == oldPiece.getLength()) {
             // new piece after current leaf
-            RBTree.Node<Piece> newNode = tree.createLeafNode(pieceToInsert);
+            PieceTree.PieceNode newNode = tree.createLeafNode(pieceToInsert);
             tree.addSiblingNode(node, newNode, false);
             tree.insertFixup(newNode);
         } else {
-            RBTree.Node<Piece> newNode = tree.createLeafNode(pieceToInsert);
+            PieceTree.PieceNode newNode = tree.createLeafNode(pieceToInsert);
             tree.splitLeafNode(node, newNode, offset);
             tree.insertFixup(newNode);
         }
@@ -93,7 +93,7 @@ public class PieceTable {
         PieceTree.NodeOffset end = result.get().end();
 
         if (start.node() == end.node()) {
-            RBTree.Node<Piece> leaf = start.node();
+            PieceTree.PieceNode leaf = start.node();
             Piece piece = leaf.payload;
 
             int leftLen = start.offset();
@@ -103,9 +103,9 @@ public class PieceTable {
                 Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
                 Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
 
-                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
-                RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
-                RBTree.Node<Piece> newParent = tree.createInternalNode(leftNode, rightNode);
+                PieceTree.PieceNode leftNode = tree.createLeafNode(leftPiece);
+                PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
+                PieceTree.PieceNode newParent = tree.createInternalNode(leftNode, rightNode);
 
                 newParent.color = leaf.color;
 
@@ -113,7 +113,7 @@ public class PieceTable {
                 return;
             } else if (leftLen > 0) {
                 Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
-                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
+                PieceTree.PieceNode leftNode = tree.createLeafNode(leftPiece);
                 tree.recompute(leftNode);
 
                 leftNode.color = leaf.color;
@@ -122,7 +122,7 @@ public class PieceTable {
                 return;
             } else if (rightLen > 0) {
                 Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
-                RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
+                PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
                 tree.recompute(rightNode);
 
                 rightNode.color = leaf.color;
@@ -132,20 +132,20 @@ public class PieceTable {
             } else {
                 tree.replaceChild(leaf.parent, leaf, null);
                 if (leaf.isBlack()) {
-                    RBTree.Node<Piece> problemNode = tree.findNodeForFixup(leaf);
+                    PieceTree.PieceNode problemNode = tree.findNodeForFixup(leaf);
                     if (problemNode != null) tree.removeFixup(problemNode);
                 }
                 return;
             }
         }
         // TODO:  create a version that grabs the interior nodes prior to trimming start and end nodes, and removes them
-        RBTree.Node<Piece> startLeaf = start.node();
-        RBTree.Node<Piece> endLeaf = end.node();
+        PieceTree.PieceNode startLeaf = start.node();
+        PieceTree.PieceNode endLeaf = end.node();
 
         if (start.offset() < startLeaf.payload.getLength()) {
             Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
             if (leftPiece.getLength() > 0) {
-                RBTree.Node<Piece> leftNode = tree.createLeafNode(leftPiece);
+                PieceTree.PieceNode leftNode = tree.createLeafNode(leftPiece);
                 tree.replaceChild(startLeaf.parent, startLeaf, leftNode);
                 startLeaf = leftNode;
             } else {
@@ -157,18 +157,18 @@ public class PieceTable {
         int rightLen = endLeaf.payload.getLength() - end.offset();
         if (rightLen > 0) {
             Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
-            RBTree.Node<Piece> rightNode = tree.createLeafNode(rightPiece);
+            PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
             tree.replaceChild(endLeaf.parent, endLeaf, rightNode);
             endLeaf = rightNode;
         } else {
             tree.replaceChild(endLeaf.parent, endLeaf, null);
         }
 
-        RBTree.Node<Piece> returnLeaf = tree.removeBetweenLeaves(startLeaf, endLeaf);
+        PieceTree.PieceNode returnLeaf = tree.removeBetweenLeaves(startLeaf, endLeaf);
         tree.bubbleRecompute(startLeaf);
         tree.bubbleRecompute(endLeaf);
         if (returnLeaf.isBlack()) {
-            RBTree.Node<Piece> problemNode = tree.findNodeForFixup(returnLeaf);
+            PieceTree.PieceNode problemNode = tree.findNodeForFixup(returnLeaf);
             if (problemNode != null) tree.removeFixup(problemNode);
         }
     }
@@ -179,7 +179,7 @@ public class PieceTable {
         return sb.toString();
     }
 
-    private void getTextHelper(RBTree.Node<Piece> node, StringBuilder stringBuilder) {
+    private void getTextHelper(PieceTree.PieceNode node, StringBuilder stringBuilder) {
         if (node == null) {return;}
         if (node.isLeaf()) {
             String text = node.payload.getText();
@@ -190,7 +190,7 @@ public class PieceTable {
         }
     }
 
-    private void collectPieces(RBTree.Node<Piece> node, List<Piece> out) {
+    private void collectPieces(PieceTree.PieceNode node, List<Piece> out) {
         if (node == null) return;
         if (node.isLeaf()) out.add(node.payload);
         else {
