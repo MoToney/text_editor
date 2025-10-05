@@ -2,6 +2,7 @@ package texteditor.model;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
@@ -49,14 +50,16 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     @Override
     protected void recompute(PieceNode node) {
         if (node == null) return;
-
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
-            // pieceNode.newlineCount = (node.payload != null) ? node.payload.getLineCount : 0;
+            node.newlineCount = ( node.payload != null) ? node.payload.getLineCount() : 0;
         } else {
-            int leftLen = (node.left != null) ? node.left.length : 0;
-            int rightLen = (node.right != null) ? node.right.length : 0;
-            node.length = leftLen + rightLen;
+            node.length =
+                    (node.left  != null ? node.left.length : 0) +
+                            (node.right != null ? node.right.length : 0);
+            node.newlineCount =
+                    (node.left  != null ? node.left.newlineCount : 0) +
+                            (node.right != null ? node.right.newlineCount : 0);
         }
     }
 
@@ -99,6 +102,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     }
 
     record NodeOffset(PieceNode node, int offset) {}
+
     Optional<NodeOffset> findNodeAndOffset(int position) {
         if (root == null) return Optional.empty();
         PieceNode node = root;
@@ -117,20 +121,92 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return Optional.of(new NodeOffset(node, position));
     }
 
+    private OptionalInt findNthNewlinePos(int n) {
+        if (root == null || n < 0 || n >= root.newlineCount) return OptionalInt.empty();
+
+        PieceNode node = root;
+        int acc = 0;
+
+        while (!node.isLeaf()) {
+            int leftCnt = (node.left != null) ? node.left.newlineCount : 0;
+            int leftLen = (node.left != null) ? node.left.length : 0;
+            if (n < leftCnt) {
+                node = node.left;
+            } else {
+                n -= leftCnt;
+                acc += leftLen;
+                node = node.right;
+            }
+        }
+
+        PieceNode cur = node;
+        while (cur != null) {
+            for (int i = 0; i < cur.length; i++) {
+                if (cur.payload.getChar(i) == '\n') {
+                    if (n == 0) return OptionalInt.of(acc + i);
+                    n--;
+                }
+            }
+            acc += cur.length;
+            cur = nextLeaf(cur);
+        }
+        return OptionalInt.empty();
+    }
+
+    Optional<String> getLineString(int lineIndex) {
+        if (root == null) return Optional.empty();
+
+        int totalLines = root.newlineCount + (treeLength() > 0 ? 1 : 0);
+        if (lineIndex < 0 || lineIndex >= totalLines) return Optional.empty();
+
+        // get start position of the requested line
+        int startPos;
+        if (lineIndex == 0) {
+            startPos = 0;
+        } else {
+            OptionalInt nthNewlinePos = findNthNewlinePos(lineIndex - 1);
+            if (nthNewlinePos.isEmpty()) return Optional.empty();
+            startPos = nthNewlinePos.getAsInt() + 1;
+        }
+
+        // find leaf and offset for startPos
+        Optional<NodeOffset> nodeOffset = findNodeAndOffset(startPos);
+        if (nodeOffset.isEmpty()) return Optional.empty();
+        PieceNode node = nodeOffset.get().node;
+        int offset = nodeOffset.get().offset;
+
+        StringBuilder sb = new StringBuilder();
+        PieceNode cur = node;
+        int curOffset = offset;
+
+        while (cur != null) {
+            for (int i = curOffset; i < cur.length; i++) {
+                char c = cur.payload.getChar(i);
+                sb.append(c);
+                if (c == '\n') {
+                    return Optional.of(sb.toString());
+                }
+            }
+            cur = nextLeaf(cur);
+            curOffset = 0;
+        }
+        return Optional.of(sb.toString());
+    }
+
     record NodeRange(NodeOffset start, NodeOffset end) {}
-    Optional<NodeRange> findNodeAndRange(int position, int removeLength) {
-        if (root == null || removeLength <= 0) return Optional.empty();
 
-        int treeLen = treeLength();
-        if (position < 0 || position >= treeLen) return Optional.empty();
+    NodeRange findNodeAndRange(int position, int removeLength) {
+        if (root == null) throw new IllegalStateException("tree is empty");
+        if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
 
-        int startPos = Math.max(0, position);
+        if (position < 0 || position >= treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
+
         int endPos = Math.min(treeLength(), position + removeLength);
 
-        NodeOffset start = findNodeAndOffset(startPos).orElse(null);
+        NodeOffset start = findNodeAndOffset(position).orElse(null);
         NodeOffset end = findNodeAndOffset(endPos).orElse(null);
 
-        return (start != null && end != null) ? Optional.of(new NodeRange(start, end)) : Optional.empty();
+        return (start != null && end != null) ? new NodeRange(start, end) : null;
     }
 
     PieceNode removeBetweenLeaves(PieceNode startLeaf, PieceNode endLeaf) {

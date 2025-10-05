@@ -33,7 +33,16 @@ public class Piece {
     }
 
     public String getText() {
+        return buffer.substring(start, start + this.length);
+    }
+
+    public String getSubString(int start, int length) {
         return buffer.substring(start, start + length);
+    }
+
+    public char getChar(int index) {
+        if (index < 0 || index >= length) throw new IndexOutOfBoundsException();
+        return buffer.charAt(start + index);
     }
 
     public void calculateLineCount() {

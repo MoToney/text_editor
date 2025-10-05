@@ -84,13 +84,13 @@ public class PieceTable {
         if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
         if (tree.root == null) throw new IllegalStateException("Tree is empty");
 
-        Optional<PieceTree.NodeRange> result = tree.findNodeAndRange(position, removeLength);
-        if (result.isEmpty()) {
+        PieceTree.NodeRange result = tree.findNodeAndRange(position, removeLength);
+        if (result == null) {
             throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
         }
 
-        PieceTree.NodeOffset start = result.get().start();
-        PieceTree.NodeOffset end = result.get().end();
+        PieceTree.NodeOffset start = result.start();
+        PieceTree.NodeOffset end = result.end();
 
         if (start.node() == end.node()) {
             PieceTree.PieceNode leaf = start.node();
@@ -264,8 +264,17 @@ public class PieceTable {
         return lineIndex == getLineCount() - 1;
     }
 
+    public String getLineOne(int lineIndex) {
+        if (lineIndex < 0) return null;
+        return "";
+    }
+
     public String getLine(int lineIndex) {
+        Optional<String> res = tree.getLineString(lineIndex);
+        return res.orElse(null);
+        /*
         List<Piece> pieces = toPieceList();
+
         if (lineIndex < 0 || lineIndex >= lineCache.size()) {
             throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);
         }
@@ -290,6 +299,8 @@ public class PieceTable {
             offsetInPiece = 0;
         }
         return lineBuilder.toString();
+            */
     }
+
 }
 
