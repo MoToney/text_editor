@@ -23,8 +23,6 @@ public class PieceTable {
             insertHelper(0, piece);
             this.totalLength = piece.getLength();
         }
-
-        rebuildLineCache();
     }
 
     public void insert(int position, String text) {
@@ -36,7 +34,6 @@ public class PieceTable {
 
         insertHelper(position, newPiece);
         totalLength += textLength;
-        rebuildLineCache();
     }
 
     private void insertHelper(int position, Piece pieceToInsert) {
@@ -55,15 +52,18 @@ public class PieceTable {
             PieceTree.PieceNode newLeaf = tree.createLeafNode(pieceToInsert);
             tree.addSiblingNode(node, newLeaf, true);
             tree.insertFixup(newLeaf);
+            tree.bubbleRecompute(newLeaf);
         } else if (offset == oldPiece.getLength()) {
             // new piece after current leaf
             PieceTree.PieceNode newNode = tree.createLeafNode(pieceToInsert);
             tree.addSiblingNode(node, newNode, false);
             tree.insertFixup(newNode);
+            tree.bubbleRecompute(newNode);
         } else {
             PieceTree.PieceNode newNode = tree.createLeafNode(pieceToInsert);
             tree.splitLeafNode(node, newNode, offset);
             tree.insertFixup(newNode);
+            tree.bubbleRecompute(newNode);
         }
     }
 
@@ -76,8 +76,6 @@ public class PieceTable {
 
         removeHelper(position, length);
         totalLength -= length;
-
-        rebuildLineCache();
     }
 
     private void removeHelper(int position, int removeLength) {
@@ -170,11 +168,13 @@ public class PieceTable {
         if (returnLeaf.isBlack()) {
             PieceTree.PieceNode problemNode = tree.findNodeForFixup(returnLeaf);
             if (problemNode != null) tree.removeFixup(problemNode);
+            tree.bubbleRecompute(startLeaf);
+            tree.bubbleRecompute(endLeaf);
         }
     }
 
     public String getText() {
-        StringBuilder sb = new StringBuilder(tree.treeLength());
+        StringBuilder sb = new StringBuilder(tree.length());
         getTextHelper(tree.root, sb);
         return sb.toString();
     }
@@ -205,55 +205,17 @@ public class PieceTable {
         return out;
     }
 
-    public int getTreeLength() { return tree.treeLength(); }
-
-    private void rebuildLineCache() {
-        List<Piece> pieces = toPieceList();
-        lineCache.clear();
-        if (pieces.isEmpty()) {
-            lineCache.add(new Line(0, 0, 0));
-            return;
-        }
-
-        int currentLineStartPiece = 0;
-        int currentLineStartOffset = 0;
-        int currentLineLength = 0;
-
-        for (int pieceIndex = 0; pieceIndex < pieces.size(); pieceIndex++) {
-            Piece piece = pieces.get(pieceIndex);
-            List<Integer> lineStarts = piece.getLineStarts();
-
-            if (lineStarts.size() <= 1) {
-                currentLineLength += piece.getLength();
-            } else {
-                for (int i = 1; i < lineStarts.size(); i++) {
-                    int lineStartInPiece = (i == 1) ? 0 : lineStarts.get(i - 1);
-                    int lineEndInPiece = lineStarts.get(i) - 1;
-                    int segmentLength = lineEndInPiece - lineStartInPiece + 1;
-
-                    currentLineLength += segmentLength;
-
-                    lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
-
-                    currentLineStartPiece = pieceIndex;
-                    currentLineStartOffset = lineStarts.get(i);
-                    currentLineLength = 0;
-
-                }
-
-                int lastNewlinePos = lineStarts.getLast();
-                if (lastNewlinePos < piece.getLength()) {
-                    currentLineLength += piece.getLength() - lastNewlinePos;
-                }
-            }
-        }
-        if (currentLineLength > 0 || lineCache.isEmpty()) {
-            lineCache.add(new Line(currentLineStartPiece, currentLineStartOffset, currentLineLength));
-        }
-    }
+    public int getTreeLength() { return tree.length(); }
 
     public int getLineCount() {
-        return this.lineCache.size();
+        int newlineCount = tree.getRoot().getNewlineCharCount();
+
+        OptionalInt positionOfLastNewLineChar = tree.findNthNewlinePos(newlineCount - 1);
+
+        if (positionOfLastNewLineChar.isEmpty()) return 1;
+
+        return (positionOfLastNewLineChar.getAsInt() == getTreeLength() - 1) ? newlineCount : newlineCount + 1;
+
     }
 
     public int getLineLength(int lineIndex) {
@@ -264,13 +226,8 @@ public class PieceTable {
         return lineIndex == getLineCount() - 1;
     }
 
-    public String getLineOne(int lineIndex) {
-        if (lineIndex < 0) return null;
-        return "";
-    }
-
     public String getLine(int lineIndex) {
-        Optional<String> res = tree.getLineString(lineIndex);
+        Optional<String> res = getLineString(lineIndex);
         return res.orElse(null);
         /*
         List<Piece> pieces = toPieceList();
@@ -300,6 +257,46 @@ public class PieceTable {
         }
         return lineBuilder.toString();
             */
+    }
+
+    Optional<String> getLineString(int lineIndex) {
+        if (tree.getRoot() == null) return Optional.empty();
+
+        int totalLines = tree.getRoot().getNewlineCharCount() + (tree.length() > 0 ? 1 : 0);
+        if (lineIndex < 0 || lineIndex >= totalLines) return Optional.empty();
+
+        // get start position of the requested line
+        int startPos;
+        if (lineIndex == 0) {
+            startPos = 0;
+        } else {
+            OptionalInt nthNewlinePos = tree.findNthNewlinePos(lineIndex - 1);
+            if (nthNewlinePos.isEmpty()) return Optional.empty();
+            startPos = nthNewlinePos.getAsInt() + 1;
+        }
+
+        // find leaf and offset for startPos
+        Optional<PieceTree.NodeOffset> nodeOffset = tree.findNodeAndOffset(startPos);
+        if (nodeOffset.isEmpty()) return Optional.empty();
+        PieceTree.PieceNode node = nodeOffset.get().node();
+        int offset = nodeOffset.get().offset();
+
+        StringBuilder sb = new StringBuilder();
+        PieceTree.PieceNode cur = node;
+        int curOffset = offset;
+
+        while (cur != null) {
+            for (int i = curOffset; i < cur.length; i++) {
+                char c = cur.payload.getChar(i);
+                sb.append(c);
+                if (c == '\n') {
+                    return Optional.of(sb.toString());
+                }
+            }
+            cur = tree.nextLeaf(cur);
+            curOffset = 0;
+        }
+        return Optional.of(sb.toString());
     }
 
 }

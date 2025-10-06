@@ -7,7 +7,7 @@ import java.util.OptionalInt;
 public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
     protected static class PieceNode extends Node<PieceNode, Piece> {
-        int newlineCount;
+        private int newlineCharCount;
         PieceNode(Piece payload) { super(payload); }
         PieceNode(PieceNode left, PieceNode right) {
             super(left, right);
@@ -17,6 +17,8 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
         @Override
         public boolean isLeaf() { return payload != null; }
+
+        public int getNewlineCharCount() { return newlineCharCount; }
     }
 
     public PieceTree(Piece initial) {
@@ -27,11 +29,18 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     }
     public PieceTree() {this(null);}
 
+    @Override
+    protected int length() { return (root != null) ? root.length : 0; }
+
+    @Override
     protected void setRoot(PieceNode node) {
         this.root = node;
         this.root.color = Color.BLACK;
         recompute(this.root);
     }
+
+    @Override
+    protected PieceNode getRoot() { return this.root; }
 
     @Override
     protected PieceNode createLeafNode(Piece payload) {
@@ -52,19 +61,19 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         if (node == null) return;
         if (node.isLeaf()) {
             node.length = (node.payload != null) ? node.payload.getLength() : 0;
-            node.newlineCount = ( node.payload != null) ? node.payload.getLineCount() : 0;
+            node.newlineCharCount = ( node.payload != null) ? node.payload.getLineCount() : 0;
         } else {
             node.length =
                     (node.left  != null ? node.left.length : 0) +
                             (node.right != null ? node.right.length : 0);
-            node.newlineCount =
-                    (node.left  != null ? node.left.newlineCount : 0) +
-                            (node.right != null ? node.right.newlineCount : 0);
+            node.newlineCharCount =
+                    (node.left  != null ? node.left.newlineCharCount : 0) +
+                            (node.right != null ? node.right.newlineCharCount : 0);
         }
     }
 
-
-    void addSiblingNode(PieceNode oldNode, PieceNode newNode, boolean newOnLeft) {
+    @Override
+    protected void addSiblingNode(PieceNode oldNode, PieceNode newNode, boolean newOnLeft) {
         PieceNode grandparent = oldNode.parent; // this was originally the parent of the node that needs a sibling
 
         newNode.color = Color.RED;
@@ -77,7 +86,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         replaceChild(grandparent, oldNode, newParent);
     }
 
-    void splitLeafNode(PieceNode oldNode, PieceNode newNode, int offset) {
+    public void splitLeafNode(PieceNode oldNode, PieceNode newNode, int offset) {
         PieceNode grandparent = oldNode.parent;
 
         Piece oldPiece = oldNode.payload;
@@ -107,7 +116,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         if (root == null) return Optional.empty();
         PieceNode node = root;
 
-        position = Math.min(treeLength(), Math.max(position, 0));
+        position = Math.min(length(), Math.max(position, 0));
 
         while (!Objects.requireNonNull(node).isLeaf()) {
             int leftLen = (node.left != null) ? node.left.length : 0;
@@ -121,14 +130,14 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return Optional.of(new NodeOffset(node, position));
     }
 
-    private OptionalInt findNthNewlinePos(int n) {
-        if (root == null || n < 0 || n >= root.newlineCount) return OptionalInt.empty();
+    public OptionalInt findNthNewlinePos(int n) {
+        if (root == null || n < 0 || n >= root.newlineCharCount) return OptionalInt.empty();
 
         PieceNode node = root;
         int acc = 0;
 
         while (!node.isLeaf()) {
-            int leftCnt = (node.left != null) ? node.left.newlineCount : 0;
+            int leftCnt = (node.left != null) ? node.left.newlineCharCount : 0;
             int leftLen = (node.left != null) ? node.left.length : 0;
             if (n < leftCnt) {
                 node = node.left;
@@ -153,55 +162,15 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return OptionalInt.empty();
     }
 
-    Optional<String> getLineString(int lineIndex) {
-        if (root == null) return Optional.empty();
-
-        int totalLines = root.newlineCount + (treeLength() > 0 ? 1 : 0);
-        if (lineIndex < 0 || lineIndex >= totalLines) return Optional.empty();
-
-        // get start position of the requested line
-        int startPos;
-        if (lineIndex == 0) {
-            startPos = 0;
-        } else {
-            OptionalInt nthNewlinePos = findNthNewlinePos(lineIndex - 1);
-            if (nthNewlinePos.isEmpty()) return Optional.empty();
-            startPos = nthNewlinePos.getAsInt() + 1;
-        }
-
-        // find leaf and offset for startPos
-        Optional<NodeOffset> nodeOffset = findNodeAndOffset(startPos);
-        if (nodeOffset.isEmpty()) return Optional.empty();
-        PieceNode node = nodeOffset.get().node;
-        int offset = nodeOffset.get().offset;
-
-        StringBuilder sb = new StringBuilder();
-        PieceNode cur = node;
-        int curOffset = offset;
-
-        while (cur != null) {
-            for (int i = curOffset; i < cur.length; i++) {
-                char c = cur.payload.getChar(i);
-                sb.append(c);
-                if (c == '\n') {
-                    return Optional.of(sb.toString());
-                }
-            }
-            cur = nextLeaf(cur);
-            curOffset = 0;
-        }
-        return Optional.of(sb.toString());
-    }
-
     record NodeRange(NodeOffset start, NodeOffset end) {}
 
     NodeRange findNodeAndRange(int position, int removeLength) {
         if (root == null) throw new IllegalStateException("tree is empty");
         if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
 
-        if (position < 0 || position >= treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
+        if (position < 0 || position >= length()) throw new IllegalArgumentException("position must be between 0 and " + (length() - 1));
 
-        int endPos = Math.min(treeLength(), position + removeLength);
+        int endPos = Math.min(length(), position + removeLength);
 
         NodeOffset start = findNodeAndOffset(position).orElse(null);
         NodeOffset end = findNodeAndOffset(endPos).orElse(null);
@@ -239,7 +208,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return cur;
     }
 
-    private PieceNode nextLeaf(PieceNode leaf) {
+    public PieceNode nextLeaf(PieceNode leaf) {
         if (leaf == null) return null;
 
         PieceNode p = leaf.parent;

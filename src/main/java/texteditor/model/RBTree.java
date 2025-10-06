@@ -1,7 +1,5 @@
 package texteditor.model;
 
-import java.util.Optional;
-
 public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
     enum Color {RED, BLACK}
 
@@ -51,9 +49,13 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
 
     protected N root;
 
+    protected abstract void setRoot(N root);
+    protected abstract N getRoot();
+
     protected abstract N createLeafNode(P payload);
     protected abstract N createInternalNode(N left, N right);
 
+    protected abstract void addSiblingNode(N oldNode, N newNode, boolean newOnLeft);
     protected abstract void recompute(N node);
 
     protected void bubbleRecompute(N start) {
@@ -64,9 +66,7 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
         }
     }
 
-    protected int treeLength() {
-        return (root != null) ? root.length : 0;
-    }
+    protected abstract int length();
 
     protected void replaceChild(N parent, N oldChild, N newChild) {
         if (parent == newChild) {
