@@ -37,7 +37,7 @@ public class PieceTable {
     }
 
     private void insertHelper(int position, Piece pieceToInsert) {
-        Optional<PieceTree.NodeOffset> result = tree.findNodeAndOffset(position);
+        Optional<PieceTree.NodeLocation> result = tree.translateToNodeLocation(position);
 
         if (result.isEmpty()) {
             tree.setRoot(tree.createLeafNode(pieceToInsert));
@@ -45,7 +45,7 @@ public class PieceTable {
         }
 
         PieceTree.PieceNode node = result.get().node();
-        int offset = result.get().offset();
+        int offset = result.get().localOffset();
 
         Piece oldPiece = node.payload;
         if (offset == 0) {
@@ -87,19 +87,19 @@ public class PieceTable {
             throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
         }
 
-        PieceTree.NodeOffset start = result.start();
-        PieceTree.NodeOffset end = result.end();
+        PieceTree.NodeLocation start = result.startLocation();
+        PieceTree.NodeLocation end = result.endLocation();
 
         if (start.node() == end.node()) {
             PieceTree.PieceNode leaf = start.node();
             Piece piece = leaf.payload;
 
-            int leftLen = start.offset();
-            int rightLen = piece.getLength() - end.offset();
+            int leftLen = start.localOffset();
+            int rightLen = piece.getLength() - end.localOffset();
 
             if (leftLen > 0 && rightLen > 0) {
                 Piece leftPiece = new Piece(piece.getBuffer(), piece.getStart(), leftLen);
-                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.localOffset(), rightLen);
 
                 PieceTree.PieceNode leftNode = tree.createLeafNode(leftPiece);
                 PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
@@ -119,7 +119,7 @@ public class PieceTable {
                 tree.replaceChild(leaf.parent, leaf, leftNode);
                 return;
             } else if (rightLen > 0) {
-                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.offset(), rightLen);
+                Piece rightPiece = new Piece(piece.getBuffer(), piece.getStart() + end.localOffset(), rightLen);
                 PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
                 tree.recompute(rightNode);
 
@@ -136,12 +136,12 @@ public class PieceTable {
                 return;
             }
         }
-        // TODO:  create a version that grabs the interior nodes prior to trimming start and end nodes, and removes them
+        // TODO:  create a version that grabs the interior nodes prior to trimming startLocation and endLocation nodes, and removes them
         PieceTree.PieceNode startLeaf = start.node();
         PieceTree.PieceNode endLeaf = end.node();
 
-        if (start.offset() < startLeaf.payload.getLength()) {
-            Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.offset());
+        if (start.localOffset() < startLeaf.payload.getLength()) {
+            Piece leftPiece = new Piece(startLeaf.payload.getBuffer(), startLeaf.payload.getStart(), start.localOffset());
             if (leftPiece.getLength() > 0) {
                 PieceTree.PieceNode leftNode = tree.createLeafNode(leftPiece);
                 tree.replaceChild(startLeaf.parent, startLeaf, leftNode);
@@ -152,9 +152,9 @@ public class PieceTable {
 
         }
 
-        int rightLen = endLeaf.payload.getLength() - end.offset();
+        int rightLen = endLeaf.payload.getLength() - end.localOffset();
         if (rightLen > 0) {
-            Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.offset(), rightLen);
+            Piece rightPiece = new Piece(endLeaf.payload.getBuffer(), endLeaf.payload.getStart() + end.localOffset(), rightLen);
             PieceTree.PieceNode rightNode = tree.createLeafNode(rightPiece);
             tree.replaceChild(endLeaf.parent, endLeaf, rightNode);
             endLeaf = rightNode;
@@ -174,7 +174,7 @@ public class PieceTable {
     }
 
     public String getText() {
-        StringBuilder sb = new StringBuilder(tree.length());
+        StringBuilder sb = new StringBuilder(tree.treeLength());
         getTextHelper(tree.root, sb);
         return sb.toString();
     }
@@ -205,12 +205,12 @@ public class PieceTable {
         return out;
     }
 
-    public int getTreeLength() { return tree.length(); }
+    public int getTreeLength() { return tree.treeLength(); }
 
     public int getLineCount() {
-        int newlineCount = tree.getRoot().getNewlineCharCount();
+        int newlineCount = tree.getRoot().getNewlineCount();
 
-        OptionalInt positionOfLastNewLineChar = tree.findNthNewlinePos(newlineCount - 1);
+        OptionalInt positionOfLastNewLineChar = tree.findNthNewlineOffset(newlineCount - 1);
 
         if (positionOfLastNewLineChar.isEmpty()) return 1;
 
@@ -262,24 +262,24 @@ public class PieceTable {
     Optional<String> getLineString(int lineIndex) {
         if (tree.getRoot() == null) return Optional.empty();
 
-        int totalLines = tree.getRoot().getNewlineCharCount() + (tree.length() > 0 ? 1 : 0);
+        int totalLines = tree.getRoot().getNewlineCount() + (tree.treeLength() > 0 ? 1 : 0);
         if (lineIndex < 0 || lineIndex >= totalLines) return Optional.empty();
 
-        // get start position of the requested line
+        // get startLocation position of the requested line
         int startPos;
         if (lineIndex == 0) {
             startPos = 0;
         } else {
-            OptionalInt nthNewlinePos = tree.findNthNewlinePos(lineIndex - 1);
+            OptionalInt nthNewlinePos = tree.findNthNewlineOffset(lineIndex - 1);
             if (nthNewlinePos.isEmpty()) return Optional.empty();
             startPos = nthNewlinePos.getAsInt() + 1;
         }
 
-        // find leaf and offset for startPos
-        Optional<PieceTree.NodeOffset> nodeOffset = tree.findNodeAndOffset(startPos);
+        // find leaf and localOffset for startPos
+        Optional<PieceTree.NodeLocation> nodeOffset = tree.translateToNodeLocation(startPos);
         if (nodeOffset.isEmpty()) return Optional.empty();
         PieceTree.PieceNode node = nodeOffset.get().node();
-        int offset = nodeOffset.get().offset();
+        int offset = nodeOffset.get().localOffset();
 
         StringBuilder sb = new StringBuilder();
         PieceTree.PieceNode cur = node;

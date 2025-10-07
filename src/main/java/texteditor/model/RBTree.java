@@ -66,7 +66,7 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
         }
     }
 
-    protected abstract int length();
+    protected abstract int treeLength();
 
     protected void replaceChild(N parent, N oldChild, N newChild) {
         if (parent == newChild) {

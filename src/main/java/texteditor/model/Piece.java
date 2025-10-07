@@ -27,7 +27,7 @@ public class Piece {
     @Override
     public String toString() {
         return String.format(
-                "Piece(buffer=%s, start=%d, length=%d)",
+                "Piece(buffer=%s, startLocation=%d, length=%d)",
                 buffer, start, length
         );
     }

@@ -90,7 +90,7 @@ public class PieceTableTest {
     public void lineCacheAndGetLineBehavior() {
         PieceTable pt = new PieceTable("line1\nline2\nlast");
         assertEquals(3, pt.getLineCount());
-        // lines that end in a newline include the newline character in this implementation
+        // lines that endLocation in a newline include the newline character in this implementation
         assertEquals("line1\n", pt.getLine(0));
         assertEquals("line2\n", pt.getLine(1));
         assertEquals("last", pt.getLine(2));
@@ -156,7 +156,7 @@ public class PieceTableTest {
         assertEquals("Start-HelWorld", pt.getText());
         assertEquals(14, pt.getTreeLength());
 
-        // Remove at the end
+        // Remove at the endLocation
         pt.remove(pt.getTreeLength() - 3, 3); // removes "rld" -> "Start-HelWo"
         assertEquals("Start-HelWo", pt.getText());
         assertEquals(11, pt.getTreeLength());
@@ -187,7 +187,7 @@ public class PieceTableTest {
         assertEquals(17, pt.getTreeLength());
         assertEquals(4, pt.getLineCount()); // lines: "\n", "Start\n", "Hell\n", "World"
 
-        // Remove newline and text at the end
+        // Remove newline and text at the endLocation
         pt.remove(pt.getTreeLength() - 5, 5); // removes "World" -> "\nStart\nHell\n"
         // Length calculation: "\nStart\nHell\n" = 12
         assertEquals("\nStart\nHell\n", pt.getText());
@@ -197,7 +197,7 @@ public class PieceTableTest {
 
     // ------------------------------------------------------------
     // Reflection helpers + RB-tree invariant tests (adapted from PieceTreeTest)
-    // These start from PieceTable and reflect into its internal PieceTree.
+    // These startLocation from PieceTable and reflect into its internal PieceTree.
     // ------------------------------------------------------------
 
     // use this instead of direct field access
@@ -536,8 +536,8 @@ public class PieceTableTest {
             int curLen = pt.getTreeLength();
             int pos;
             switch (i % 4) {
-                case 0: pos = 0; break;          // insert at start
-                case 1: pos = curLen; break;     // insert at end
+                case 0: pos = 0; break;          // insert at startLocation
+                case 1: pos = curLen; break;     // insert at endLocation
                 case 2: pos = curLen / 2; break; // insert in middle
                 default: pos = (curLen == 0) ? 0 : rnd.nextInt(curLen + 1); // random
             }
@@ -569,7 +569,7 @@ public class PieceTableTest {
             }
         }
 
-        // Final sanity at end of all inserts
+        // Final sanity at endLocation of all inserts
         Object finalRoot = getRoot(pt);
         assertNotNull(finalRoot);
         assertLengthConsistency(finalRoot);

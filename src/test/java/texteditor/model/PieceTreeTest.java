@@ -338,8 +338,8 @@ public class PieceTreeTest {
             int curLen = tree.treeLength();          // public length() on PieceTree
             int pos;
             switch (i % 4) {
-                case 0: pos = 0; break;          // insert at start
-                case 1: pos = curLen; break;     // insert at end
+                case 0: pos = 0; break;          // insert at startLocation
+                case 1: pos = curLen; break;     // insert at endLocation
                 case 2: pos = curLen / 2; break; // insert in middle
                 default: pos = (curLen == 0) ? 0 : rnd.nextInt(curLen + 1); // random
             }
@@ -371,7 +371,7 @@ public class PieceTreeTest {
             }
         }
 
-        // Final sanity at end of all inserts
+        // Final sanity at endLocation of all inserts
         Object finalRoot = getRoot(tree);
         assertNotNull(finalRoot);
         assertLengthConsistency(finalRoot);
