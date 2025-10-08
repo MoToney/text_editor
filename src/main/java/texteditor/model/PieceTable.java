@@ -6,16 +6,13 @@ public class PieceTable {
 
     private final OriginalBuffer originalBuffer;
     private final AddBuffer addBuffer;
-    // private final List<Piece> pieces;
     private final PieceTree tree;
-    private final List<Line> lineCache;
     private int totalLength;
 
     public PieceTable(String originalText) {
         this.originalBuffer = new OriginalBuffer(originalText);
         this.addBuffer = new AddBuffer();
         // this.pieces = new ArrayList<>();
-        this.lineCache = new ArrayList<>();
         this.tree = new PieceTree();
 
         if (!originalText.isEmpty()) {
