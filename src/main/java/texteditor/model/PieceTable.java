@@ -7,19 +7,38 @@ public class PieceTable {
     private final OriginalBuffer originalBuffer;
     private final AddBuffer addBuffer;
     private final PieceTree tree;
-    private int totalLength;
+    private int length;
 
     public PieceTable(String originalText) {
         this.originalBuffer = new OriginalBuffer(originalText);
         this.addBuffer = new AddBuffer();
-        // this.pieces = new ArrayList<>();
         this.tree = new PieceTree();
 
         if (!originalText.isEmpty()) {
             Piece piece = new Piece(originalBuffer, 0, originalText.length());
             insertHelper(0, piece);
-            this.totalLength = piece.getLength();
         }
+        this.length = getTreeLength();
+    }
+
+    public int getTreeLength() {
+        return tree.treeLength();
+    }
+
+    public void recalculateLength() {
+        this.length = getTreeLength();
+    }
+
+    public String getText() {
+        return tree.getTreeText();
+    }
+
+    private int toIndex(int pos) {
+        return pos - 1;
+    }
+
+    private int toPosition(int index) {
+        return index + 1;
     }
 
     public void insert(int position, String text) {
@@ -28,14 +47,29 @@ public class PieceTable {
         int textLength = text.length();
         addBuffer.append(text);
         Piece newPiece = new Piece(addBuffer, addBuffer.length() - textLength, textLength);
-
         insertHelper(position, newPiece);
-        totalLength += textLength;
+        recalculateLength();
     }
 
     private void insertHelper(int position, Piece pieceToInsert) {
-        Optional<PieceTree.NodeLocation> result = tree.translateToNodeLocation(position);
+        if (tree.getRoot() == null) {
+            if (position != 0) {
+                throw new IllegalArgumentException(("Can only insert at position 0 in empty tree"));
+            }
+            tree.setRoot(tree.createLeafNode(pieceToInsert));
+            return;
+        }
 
+        if (position == getTreeLength()) {
+            PieceTree.PieceNode lastLeaf = tree.lastLeaf();
+            PieceTree.PieceNode newNode = tree.createLeafNode(pieceToInsert);
+            tree.addSiblingNode(lastLeaf, newNode, false);
+            tree.insertFixup(newNode);
+            tree.bubbleRecompute(newNode);
+            return;
+        }
+
+        Optional<PieceTree.NodeLocation> result = tree.getNodeLocation(position);
         if (result.isEmpty()) {
             tree.setRoot(tree.createLeafNode(pieceToInsert));
             return;
@@ -65,21 +99,26 @@ public class PieceTable {
     }
 
     public void remove(int position, int length) {
-        if (length <= 0 || position < 0 || position >= totalLength) return;
+        if (length <= 0 || position < 0 || position >= this.length) return;
 
-        if (position + length > totalLength) {
-            length = totalLength - position;  // trim to valid range
+        if (tree.getRoot() == null) return;
+
+        if (position + length > this.length) {
+            length = this.length - position;
         }
 
         removeHelper(position, length);
-        totalLength -= length;
+        recalculateLength();
     }
 
     private void removeHelper(int position, int removeLength) {
-        if (removeLength <= 0) throw new IllegalArgumentException("Illegal remove length: " + removeLength);
-        if (tree.root == null) throw new IllegalStateException("Tree is empty");
+        if (removeLength <= 0) throw new IllegalArgumentException("Remove length must be positive: " + removeLength);
+        if (tree.getRoot() == null) throw new IllegalStateException("Cannot remove from empty tree");
+        if (position < 0 || position >= tree.treeLength()) {
+            throw new IndexOutOfBoundsException("Position " + position + " is out of bounds of tree length " + tree.treeLength());
+        }
 
-        PieceTree.NodeRange result = tree.findNodeAndRange(position, removeLength);
+        PieceTree.NodeRange result = tree.getNodeRange(position, removeLength);
         if (result == null) {
             throw new IndexOutOfBoundsException("Invalid deletion range: pos=" + position + ", len=" + removeLength);
         }
@@ -170,29 +209,11 @@ public class PieceTable {
         }
     }
 
-    public String getText() {
-        StringBuilder sb = new StringBuilder(tree.treeLength());
-        getTextHelper(tree.root, sb);
-        return sb.toString();
-    }
-
-    private void getTextHelper(PieceTree.PieceNode node, StringBuilder stringBuilder) {
-        if (node == null) {return;}
-        if (node.isLeaf()) {
-            String text = node.payload.getText();
-            stringBuilder.append(text);
-        } else {
-            getTextHelper(node.left, stringBuilder);
-            getTextHelper(node.right, stringBuilder);
-        }
-    }
-
-    public int getTreeLength() { return tree.treeLength(); }
 
     public int getLineCount() {
         int newlineCount = tree.getRoot().getNewlineCount();
 
-        OptionalInt positionOfLastNewLineChar = tree.findGlobalOffsetOfLine(newlineCount);
+        OptionalInt positionOfLastNewLineChar = tree.getGlobalOffsetOfLine(newlineCount);
 
         if (positionOfLastNewLineChar.isEmpty()) return 1;
 
@@ -211,34 +232,6 @@ public class PieceTable {
     public String getLine(int lineIndex) {
         Optional<String> res = getLineString(lineIndex);
         return res.orElse(null);
-        /*
-        List<Piece> pieces = toPieceList();
-
-        if (lineIndex < 0 || lineIndex >= lineCache.size()) {
-            throw new IndexOutOfBoundsException("Line index out of bounds: " + lineIndex);
-        }
-
-        Line lineInfo = lineCache.get(lineIndex);
-        if (lineInfo.length == 0) return "";
-
-        StringBuilder lineBuilder = new StringBuilder(lineInfo.length);
-        int remainingLength = lineInfo.length;
-        int currentPieceIndex = lineInfo.startPieceIndex;
-        int offsetInPiece = lineInfo.startOffsetInPiece;
-
-        while (remainingLength > 0 && currentPieceIndex < pieces.size()) {
-            Piece p = pieces.get(currentPieceIndex);
-            String bufferContent = p.getBuffer().toString();
-            int charsToRead = Math.min(remainingLength, p.getLength() - offsetInPiece);
-
-            lineBuilder.append(bufferContent, p.getStart() + offsetInPiece, p.getStart() + offsetInPiece + charsToRead);
-
-            remainingLength -= charsToRead;
-            currentPieceIndex++;
-            offsetInPiece = 0;
-        }
-        return lineBuilder.toString();
-            */
     }
 
     public LineComponents getLineComponents(int lineIndex) {
@@ -261,13 +254,13 @@ public class PieceTable {
         if (lineIndex == 0) {
             startPos = 0;
         } else {
-            OptionalInt nthNewlinePos = tree.findGlobalOffsetOfLine(lineIndex);
+            OptionalInt nthNewlinePos = tree.getGlobalOffsetOfLine(lineIndex);
             if (nthNewlinePos.isEmpty()) return Optional.empty();
             startPos = nthNewlinePos.getAsInt() + 1;
         }
 
         // find leaf and localOffset for startPos
-        Optional<PieceTree.NodeLocation> nodeOffset = tree.translateToNodeLocation(startPos);
+        Optional<PieceTree.NodeLocation> nodeOffset = tree.getNodeLocation(startPos);
         if (nodeOffset.isEmpty()) return Optional.empty();
         PieceTree.PieceNode node = nodeOffset.get().node();
         int offset = nodeOffset.get().localOffset();

@@ -274,9 +274,25 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
     protected N leftmost(N internalNode) {
         N currentNode = internalNode;
         while (currentNode != null && !currentNode.isLeaf()) {
-            currentNode = currentNode.left;
+            currentNode = (currentNode.left != null) ? currentNode.left : currentNode.right;
         }
         return currentNode;
+    }
+
+    protected N firstLeaf() {
+        return leftmost(root);
+    }
+
+    protected N rightmost(N internalNode) {
+        N currentNode = internalNode;
+        while (currentNode != null && !currentNode.isLeaf()) {
+            currentNode = (currentNode.right != null) ? currentNode.right : currentNode.left;
+        }
+        return currentNode;
+    }
+
+    protected N lastLeaf() {
+        return rightmost(root);
     }
 
     protected N nextLeaf(N leaf) {
@@ -297,5 +313,23 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
         }
         if (ancestorNode == null) return null;
         return leftmost(ancestorNode.right);
+    }
+
+    protected N prevLeaf(N leaf) {
+        if (leaf == null) return null;
+
+        N parentNode = leaf.parent;
+        if (parentNode == null) return null;
+
+        if (parentNode.right == leaf) return rightmost(parentNode.left);
+
+        N currentLeaf = leaf;
+        N ancestorNode = parentNode;
+        while (ancestorNode != null && ancestorNode.left == currentLeaf) {
+            currentLeaf = ancestorNode;
+            ancestorNode = ancestorNode.parent;
+        }
+        if (ancestorNode == null) return null;
+        return rightmost(ancestorNode.left);
     }
 }

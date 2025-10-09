@@ -28,34 +28,28 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         }
     }
     public PieceTree() {this(null);}
-
     @Override
     protected int treeLength() { return (root != null) ? root.length : 0; }
-
     @Override
     protected void setRoot(PieceNode node) {
         this.root = node;
         this.root.color = Color.BLACK;
         recompute(this.root);
     }
-
     @Override
     protected PieceNode getRoot() { return this.root; }
-
     @Override
     protected PieceNode createLeafNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
-        recompute(node);
+        bubbleRecompute(node);
         return node;
     }
-
     @Override
     protected PieceNode createInternalNode(PieceNode left, PieceNode right) {
         PieceNode node = new PieceNode(left, right);
-        recompute(node);
+        bubbleRecompute(node);
         return node;
     }
-
     @Override
     protected void recompute(PieceNode node) {
         if (node == null) return;
@@ -115,11 +109,17 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
     record NodeLocation(PieceNode node, int localOffset) {}
 
-    Optional<NodeLocation> translateToNodeLocation(int globalOffset) {
-        if (root == null) return Optional.empty();
+    Optional<NodeLocation> getNodeLocation(int globalOffset) {
+        if (this.root == null) return Optional.empty();
 
-        PieceNode node = root;
-        int offset = Math.min(treeLength(), Math.max(globalOffset, 0));
+        if (globalOffset < 0 || globalOffset > treeLength()) {
+            throw new IndexOutOfBoundsException(
+                    "globalOffset " + globalOffset + " out of bounds [0, " + treeLength() + ")"
+            );
+        }
+
+        PieceNode node = this.root;
+        int offset = globalOffset;
 
         while (!Objects.requireNonNull(node).isLeaf()) {
             int leftLen = (node.left != null) ? node.left.length : 0;
@@ -133,7 +133,24 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return Optional.of(new NodeLocation(node, offset));
     }
 
-    public OptionalInt findGlobalOffsetOfLine(int lineNumber) {
+    int getGlobalOffsetAtNodeLocation(NodeLocation nodeLocation) {
+        if (nodeLocation == null || nodeLocation.node == null) throw new IllegalArgumentException("Invalid node location");
+
+        int globalOffset = nodeLocation.localOffset();
+        PieceNode currentNode = nodeLocation.node();
+
+        while (currentNode != null) {
+            PieceNode parentNode = currentNode.parent;
+            if (parentNode != null && currentNode == parentNode.right) {
+                globalOffset += (parentNode.left != null) ? parentNode.left.length : 0;
+            }
+            currentNode = parentNode;
+        }
+
+        return globalOffset;
+    }
+
+    public OptionalInt getGlobalOffsetOfLine(int lineNumber) {
         int lineIndex = lineNumber - 1;
         if (root == null || lineIndex < 0 || lineIndex >= root.newlineCount) return OptionalInt.empty();
 
@@ -169,16 +186,22 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
     record NodeRange(NodeLocation startLocation, NodeLocation endLocation) {}
 
-    NodeRange findNodeAndRange(int globalOffset, int removeLength) {
-        if (root == null) throw new IllegalStateException("tree is empty");
+    NodeRange getNodeRange(int globalOffset, int removeLength) {
+        if (root == null) throw new IllegalStateException("Cannot get range from empty tree");
         if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
 
-        if (globalOffset < 0 || globalOffset > treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
+        if (globalOffset < 0 || globalOffset >= treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
 
         int endPos = Math.min(treeLength(), globalOffset + removeLength);
 
-        NodeLocation startLocation = translateToNodeLocation(globalOffset).orElse(null);
-        NodeLocation endLocation = translateToNodeLocation(endPos).orElse(null);
+        NodeLocation startLocation = getNodeLocation(globalOffset).get();
+        NodeLocation endLocation;
+        if (endPos == treeLength()) {
+            PieceNode lastLeaf = lastLeaf();
+            endLocation = new NodeLocation(lastLeaf, lastLeaf.length);
+        } else {
+            endLocation = getNodeLocation(endPos).get();
+        }
 
         return (startLocation != null && endLocation != null) ? new NodeRange(startLocation, endLocation) : null;
     }
@@ -204,6 +227,25 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         }
         return startLeaf;
     }
+
+
+    public String getTreeText() {
+        StringBuilder sb = new StringBuilder(treeLength());
+        getTextHelper(this.root, sb);
+        return sb.toString();
+    }
+
+    private void getTextHelper(PieceTree.PieceNode node, StringBuilder stringBuilder) {
+        if (node == null) {return;}
+        if (node.isLeaf()) {
+            String text = node.payload.getText();
+            stringBuilder.append(text);
+        } else {
+            getTextHelper(node.left, stringBuilder);
+            getTextHelper(node.right, stringBuilder);
+        }
+    }
+
 
     public boolean isValidRedBlack() {
         if (root != null && root.isRed()) return false;  // Root must be black
