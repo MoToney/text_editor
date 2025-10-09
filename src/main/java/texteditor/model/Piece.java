@@ -23,21 +23,30 @@ public class Piece {
     public Buffer getBuffer() {return buffer;}
     public int getStart() {return start;}
     public int getLength() {return length;}
+    public int getEnd() { return start + length; }
 
     @Override
     public String toString() {
-        return String.format(
-                "Piece(buffer=%s, startLocation=%d, length=%d)",
-                buffer, start, length
-        );
+        return "Piece[start=" + start + ", length=" + length + ", text=\""
+                + buffer.substring(start, start + length).replace("\n", "\\n") + "\"]";
     }
+
 
     public String getText() {
         return buffer.substring(start, start + this.length);
     }
 
-    public String getSubString(int start, int length) {
-        return buffer.substring(start, start + length);
+    public String subString(int localStart, int localEnd) {
+        if (localStart < 0 ||  localEnd > this.length || localStart > localEnd) {
+            throw new IndexOutOfBoundsException(
+                    "Invalid range: [" + localStart + ", " + localEnd +
+                            ") for piece length " + this.length);
+        }
+
+        int bufferStart = this.start + localStart;
+        int bufferEnd = this.start + localEnd;
+
+        return buffer.substring(bufferStart, bufferEnd);
     }
 
     public char getChar(int index) {
@@ -56,14 +65,5 @@ public class Piece {
     public Integer getLineCount() {
         if (lineCount == null) calculateLineCount();
         return this.lineCount;
-    }
-
-    public List<Integer> getLineStarts() {
-        List<Integer> starts = new ArrayList<>();
-        starts.add(0);
-        for (int i = start; i < start + length; i++) {
-            if (buffer.charAt(i) == '\n') starts.add(i - start + 1);
-        }
-            return starts;
     }
 }

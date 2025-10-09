@@ -69,17 +69,11 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
     protected abstract int treeLength();
 
     protected void replaceChild(N parent, N oldChild, N newChild) {
-        if (parent == newChild) {
-            throw new IllegalStateException("Attempted to set parent as its own child");
-        }
-        if (parent == null) {
-            root = newChild;
-            if (newChild != null) newChild.parent = null;
-        } else if (parent.left == oldChild) {
-            parent.left = newChild;
-        } else {
-            parent.right = newChild;
-        }
+        if (parent == newChild) { throw new IllegalStateException("Attempted to set parent as its own child"); }
+
+        if (parent == null) { root = newChild;
+        } else if (parent.left == oldChild) { parent.left = newChild;
+        } else { parent.right = newChild; }
 
         if (newChild != null) newChild.parent = parent;
         bubbleRecompute(newChild != null ? newChild : parent);
@@ -275,5 +269,33 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
             }
         }
         problemNode.color = Color.BLACK;
+    }
+
+    protected N leftmost(N internalNode) {
+        N currentNode = internalNode;
+        while (currentNode != null && !currentNode.isLeaf()) {
+            currentNode = currentNode.left;
+        }
+        return currentNode;
+    }
+
+    protected N nextLeaf(N leaf) {
+        if (leaf == null) return null;
+
+        N parentNode = leaf.parent;
+        if (parentNode == null) return null;
+
+        // get the right sibling of the current left node
+        if (parentNode.left == leaf) return leftmost(parentNode.right);
+
+        // traverse up the tree until the next leaf node is found
+        N currentLeaf = leaf;
+        N ancestorNode = parentNode;
+        while (ancestorNode != null && ancestorNode.right == currentLeaf) {
+            currentLeaf = ancestorNode;
+            ancestorNode = ancestorNode.parent;
+        }
+        if (ancestorNode == null) return null;
+        return leftmost(ancestorNode.right);
     }
 }

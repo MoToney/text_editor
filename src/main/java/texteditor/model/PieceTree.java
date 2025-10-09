@@ -80,8 +80,10 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         Color newParentColor = originalSiblingNode.color;
         originalSiblingNode.color = Color.RED;
 
+        PieceNode newParent = newOnLeft ?
+                createInternalNode(newSiblingNode, originalSiblingNode) :
+                createInternalNode(originalSiblingNode, newSiblingNode);
 
-        PieceNode newParent = newOnLeft ? createInternalNode(newSiblingNode, originalSiblingNode) : createInternalNode(originalSiblingNode, newSiblingNode);
         newParent.color = newParentColor;
         replaceChild(grandparent, originalSiblingNode, newParent);
     }
@@ -131,19 +133,20 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         return Optional.of(new NodeLocation(node, offset));
     }
 
-    public OptionalInt findNthNewlineOffset(int newlineIndex) {
-        if (root == null || newlineIndex < 0 || newlineIndex >= root.newlineCount) return OptionalInt.empty();
+    public OptionalInt findGlobalOffsetOfLine(int lineNumber) {
+        int lineIndex = lineNumber - 1;
+        if (root == null || lineIndex < 0 || lineIndex >= root.newlineCount) return OptionalInt.empty();
 
         PieceNode currentNode = root;
         int baseOffset = 0;
 
         while (!Objects.requireNonNull(currentNode).isLeaf()) {
             int leftSubtreeNewlineCount = (currentNode.left != null) ? currentNode.left.newlineCount : 0;
-            if (newlineIndex < leftSubtreeNewlineCount) {
+            if (lineIndex < leftSubtreeNewlineCount) {
                 currentNode = currentNode.left;
             } else {
                 int leftSubtreeLength = (currentNode.left != null) ? currentNode.left.length : 0;
-                newlineIndex -= leftSubtreeNewlineCount;
+                lineIndex -= leftSubtreeNewlineCount;
                 baseOffset += leftSubtreeLength;
                 currentNode = currentNode.right;
             }
@@ -154,8 +157,8 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
             Piece payload = currentLeaf.payload;
             for (int i = 0; i < currentLeaf.length; i++) {
                 if (payload.getChar(i) == '\n') {
-                    if (newlineIndex == 0) return OptionalInt.of(baseOffset + i);
-                    newlineIndex--;
+                    if (lineIndex == 0) return OptionalInt.of(baseOffset + i);
+                    lineIndex--;
                 }
             }
             baseOffset += currentLeaf.length;
@@ -170,7 +173,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         if (root == null) throw new IllegalStateException("tree is empty");
         if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
 
-        if (globalOffset < 0 || globalOffset >= treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
+        if (globalOffset < 0 || globalOffset > treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
 
         int endPos = Math.min(treeLength(), globalOffset + removeLength);
 
@@ -200,34 +203,6 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
             curLeaf = nextLeaf;
         }
         return startLeaf;
-    }
-
-    private PieceNode leftmost(PieceNode node) {
-        PieceNode currentNode = node;
-        while (currentNode != null && !currentNode.isLeaf()) {
-            currentNode = currentNode.left;
-        }
-        return currentNode;
-    }
-
-    public PieceNode nextLeaf(PieceNode leaf) {
-        if (leaf == null) return null;
-
-        PieceNode parentNode = leaf.parent;
-        if (parentNode == null) return null;
-
-        // get the right sibling of the current left node
-        if (parentNode.left == leaf) return leftmost(parentNode.right);
-
-        // traverse up the tree until the next leaf node is found
-        PieceNode currentLeaf = leaf;
-        PieceNode ancestorNode = parentNode;
-        while (ancestorNode != null && ancestorNode.right == currentLeaf) {
-            currentLeaf = ancestorNode;
-            ancestorNode = ancestorNode.parent;
-        }
-        if (ancestorNode == null) return null;
-        return leftmost(ancestorNode.right);
     }
 
     public boolean isValidRedBlack() {

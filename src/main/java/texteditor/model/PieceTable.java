@@ -187,27 +187,12 @@ public class PieceTable {
         }
     }
 
-    private void collectPieces(PieceTree.PieceNode node, List<Piece> out) {
-        if (node == null) return;
-        if (node.isLeaf()) out.add(node.payload);
-        else {
-            collectPieces(node.left, out);
-            collectPieces(node.right, out);
-        }
-    }
-
-    public List<Piece> toPieceList() {
-        List<Piece> out = new ArrayList<>();
-        collectPieces(tree.root, out);
-        return out;
-    }
-
     public int getTreeLength() { return tree.treeLength(); }
 
     public int getLineCount() {
         int newlineCount = tree.getRoot().getNewlineCount();
 
-        OptionalInt positionOfLastNewLineChar = tree.findNthNewlineOffset(newlineCount - 1);
+        OptionalInt positionOfLastNewLineChar = tree.findGlobalOffsetOfLine(newlineCount);
 
         if (positionOfLastNewLineChar.isEmpty()) return 1;
 
@@ -256,6 +241,15 @@ public class PieceTable {
             */
     }
 
+    public LineComponents getLineComponents(int lineIndex) {
+        Optional<String> res = getLineString(lineIndex);
+        if (res.isPresent()) {
+            return new LineComponents(res.get());
+        } else {
+            return null;
+        }
+    }
+
     Optional<String> getLineString(int lineIndex) {
         if (tree.getRoot() == null) return Optional.empty();
 
@@ -267,7 +261,7 @@ public class PieceTable {
         if (lineIndex == 0) {
             startPos = 0;
         } else {
-            OptionalInt nthNewlinePos = tree.findNthNewlineOffset(lineIndex - 1);
+            OptionalInt nthNewlinePos = tree.findGlobalOffsetOfLine(lineIndex);
             if (nthNewlinePos.isEmpty()) return Optional.empty();
             startPos = nthNewlinePos.getAsInt() + 1;
         }

@@ -9,7 +9,14 @@ public class OriginalBuffer extends Buffer {
     }
 
     @Override
-    public String toString() { return storage; }
+    public String toString() {
+        int previewLength = Math.min(100, storage.length());
+        String preview = storage.substring(0, previewLength);
+        return "OriginalBuffer[len=" + storage.length() + ", preview=\"" + preview + (storage.length() > 100 ? "...\"" : "\"") + "]";
+    }
+
+    @Override
+    public String getText() { return storage; }
 
     @Override
     public int length() { return storage.length(); }
@@ -19,6 +26,5 @@ public class OriginalBuffer extends Buffer {
 
     @Override
     public char charAt(int index) { return storage.charAt(index); }
-
 
 }

@@ -9,7 +9,14 @@ public class AddBuffer extends Buffer {
     }
 
     @Override
-    public String toString() { return storage.toString(); }
+    public String toString() {
+        int previewLength = Math.min(100, storage.length());
+        String preview = storage.substring(0, previewLength);
+        return "AddBuffer[len=" + storage.length() + ", preview=\"" + preview + (storage.length() > 100 ? "..." : "") + "\"]";
+    }
+
+    @Override
+    public String getText() { return storage.toString(); }
 
     @Override
     public int length() { return storage.length(); }
