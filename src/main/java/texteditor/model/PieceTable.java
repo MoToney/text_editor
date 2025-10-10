@@ -69,14 +69,10 @@ public class PieceTable {
             return;
         }
 
-        Optional<PieceTree.NodeLocation> result = tree.getNodeLocation(position);
-        if (result.isEmpty()) {
-            tree.setRoot(tree.createLeafNode(pieceToInsert));
-            return;
-        }
+        PieceTree.NodeLocation result = tree.getNodeLocation(position);
 
-        PieceTree.PieceNode node = result.get().node();
-        int offset = result.get().localOffset();
+        PieceTree.PieceNode node = result.node();
+        int offset = result.localOffset();
 
         Piece oldPiece = node.payload;
         if (offset == 0) {
@@ -260,10 +256,9 @@ public class PieceTable {
         }
 
         // find leaf and localOffset for startPos
-        Optional<PieceTree.NodeLocation> nodeOffset = tree.getNodeLocation(startPos);
-        if (nodeOffset.isEmpty()) return Optional.empty();
-        PieceTree.PieceNode node = nodeOffset.get().node();
-        int offset = nodeOffset.get().localOffset();
+        PieceTree.NodeLocation nodeOffset = tree.getNodeLocation(startPos);
+        PieceTree.PieceNode node = nodeOffset.node();
+        int offset = nodeOffset.localOffset();
 
         StringBuilder sb = new StringBuilder();
         PieceTree.PieceNode cur = node;
