@@ -9,6 +9,13 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
         int length;
         Color color;
 
+        protected Node(P payload, Color color) {
+            this.payload = payload;
+            this.left = this.right = this.parent = null;
+            this.color = color;
+            this.length = 0;
+        }
+
         protected Node(P payload) {
             this.payload = payload;
             this.left = this.right = this.parent = null;
@@ -49,8 +56,12 @@ public abstract class RBTree<N extends RBTree.Node<N,P>, P> {
 
     protected N root;
 
+    //TODO: add SENTINEL/NIL node functionality
+
     protected abstract void setRoot(N root);
     protected abstract N getRoot();
+
+    //TODO: change tree behavior to match standard RB Tree, with internal nodes holding payload
 
     protected abstract N createLeafNode(P payload);
     protected abstract N createInternalNode(N left, N right);
