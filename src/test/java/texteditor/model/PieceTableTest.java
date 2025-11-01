@@ -18,7 +18,7 @@ public class PieceTableTest {
     public void constructorAndBasicGetters() {
         PieceTable pt = new PieceTable("Hello");
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
         assertEquals(1, pt.getLineCount());
         assertEquals("Hello", pt.getLine(0));
         assertTrue(pt.isLastLine(0));
@@ -30,7 +30,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("world");
         pt.insert(0, "Hello ");
         assertEquals("Hello world", pt.getText());
-        assertEquals(11, pt.getTreeLength());
+        assertEquals(11, pt.length());
     }
 
     @Test
@@ -38,7 +38,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcde");
         pt.insert(2, "X");
         assertEquals("abXcde", pt.getText());
-        assertEquals(6, pt.getTreeLength());
+        assertEquals(6, pt.length());
     }
 
     @Test
@@ -46,7 +46,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.insert(3, "def");
         assertEquals("abcdef", pt.getText());
-        assertEquals(6, pt.getTreeLength());
+        assertEquals(6, pt.length());
     }
 
     @Test
@@ -54,7 +54,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("");
         pt.insert(0, "abc");
         assertEquals("abc", pt.getText());
-        assertEquals(3, pt.getTreeLength());
+        assertEquals(3, pt.length());
         assertEquals(1, pt.getLineCount());
     }
 
@@ -63,7 +63,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcdef");
         pt.remove(2, 2); // remove "cd"
         assertEquals("abef", pt.getText());
-        assertEquals(4, pt.getTreeLength());
+        assertEquals(4, pt.length());
     }
 
     @Test
@@ -75,7 +75,7 @@ public class PieceTableTest {
         pt.remove(3, 10);
         // Expected result calculated manually: "Hel" + remaining "ld" -> "Helld"
         assertEquals("Helld", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -84,7 +84,7 @@ public class PieceTableTest {
         // attempt to remove starting beyond document length -> should be no-op
         pt.remove(10, 2);
         assertEquals("hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -145,22 +145,22 @@ public class PieceTableTest {
         // Insert text in the middle
         pt.insert(5, "12345"); // "Hello12345World"
         assertEquals("Hello12345World", pt.getText());
-        assertEquals(15, pt.getTreeLength());
+        assertEquals(15, pt.length());
 
         // Remove part of the inserted text + some original text
         pt.remove(3, 7); // removes "lo12345" -> "HelWorld"
         assertEquals("HelWorld", pt.getText());
-        assertEquals(8, pt.getTreeLength());
+        assertEquals(8, pt.length());
 
         // Insert again at the beginning
         pt.insert(0, "Start-"); // "Start-HelWorld"
         assertEquals("Start-HelWorld", pt.getText());
-        assertEquals(14, pt.getTreeLength());
+        assertEquals(14, pt.length());
 
         // Remove at the endLocation
-        pt.remove(pt.getTreeLength() - 3, 3); // removes "rld" -> "Start-HelWo"
+        pt.remove(pt.length() - 3, 3); // removes "rld" -> "Start-HelWo"
         assertEquals("Start-HelWo", pt.getText());
-        assertEquals(11, pt.getTreeLength());
+        assertEquals(11, pt.length());
     }
 
     @Test
@@ -171,28 +171,28 @@ public class PieceTableTest {
         pt.insert(5, "\n123\n"); // "Hello\n123\n\nWorld"
         // Length calculation: "Hello" (5) + "\n123\n" (5) + "\nWorld" (6) = 16
         assertEquals("Hello\n123\n\nWorld", pt.getText());
-        assertEquals(16, pt.getTreeLength());
+        assertEquals(16, pt.length());
         assertEquals(4, pt.getLineCount()); // lines: "Hello\n", "123\n", "\n", "World"
 
         // Remove across multiple lines
         pt.remove(4, 6); // removes "o\n123\n" -> "Hell\nWorld"
         // Length calculation: "Hell" (4) + "\nWorld" (6) = 10
         assertEquals("Hell\nWorld", pt.getText());
-        assertEquals(10, pt.getTreeLength());
+        assertEquals(10, pt.length());
         assertEquals(2, pt.getLineCount()); // lines: "Hell\n", "World"
 
         // Insert newline at the beginning
         pt.insert(0, "\nStart\n"); // "\nStart\nHell\nWorld"
         // Length calculation: "\nStart\n" (7) + "Hell\nWorld" (10) = 17
         assertEquals("\nStart\nHell\nWorld", pt.getText());
-        assertEquals(17, pt.getTreeLength());
+        assertEquals(17, pt.length());
         assertEquals(4, pt.getLineCount()); // lines: "\n", "Start\n", "Hell\n", "World"
 
         // Remove newline and text at the endLocation
-        pt.remove(pt.getTreeLength() - 5, 5); // removes "World" -> "\nStart\nHell\n"
+        pt.remove(pt.length() - 5, 5); // removes "World" -> "\nStart\nHell\n"
         // Length calculation: "\nStart\nHell\n" = 12
         assertEquals("\nStart\nHell\n", pt.getText());
-        assertEquals(12, pt.getTreeLength());
+        assertEquals(12, pt.length());
         assertEquals(3, pt.getLineCount()); // lines: "\n", "Start\n", "Hell\n"
     }
 
@@ -211,6 +211,32 @@ public class PieceTableTest {
                 return f;
             } catch (NoSuchFieldException e) {
                 cur = cur.getSuperclass();
+            }
+        }
+        return null;
+    }
+    private int getNodeLength(Object node) throws Exception {
+        // Look for a method named "length" in the class hierarchy
+        Method m = findMethodInHierarchy(node.getClass(), "length");
+        if (m == null) throw new NoSuchMethodException("length");
+        m.setAccessible(true);
+        return (Integer) m.invoke(node);
+    }
+
+    private int getNodeSize(Object node) throws Exception {
+        Method m = findMethodInHierarchy(node.getClass(), "size");
+        if (m == null) throw new NoSuchMethodException("size");
+        m.setAccessible(true);
+        return (Integer) m.invoke(node);
+    }
+
+    // Helper to find method in class hierarchy
+    private Method findMethodInHierarchy(Class<?> clazz, String methodName) {
+        while (clazz != null) {
+            try {
+                return clazz.getDeclaredMethod(methodName);
+            } catch (NoSuchMethodException e) {
+                clazz = clazz.getSuperclass();
             }
         }
         return null;
@@ -250,33 +276,33 @@ public class PieceTableTest {
     }
 
     // Helper to check if a node is the NIL sentinel
-    private boolean isNilSentinel(Object node) throws Exception {
+    private boolean isNilSentinel(Object node) {
         if (node == null) return false;
 
-        // Check if this is the NIL sentinel by checking if it's the static field
         try {
-            Method isLeafMethod = node.getClass().getDeclaredMethod("isLeaf");
-            isLeafMethod.setAccessible(true);
-            boolean leaf = (Boolean) isLeafMethod.invoke(node);
+            // payload == null
+            Object payload = getPayload(node);
+            if (payload != null) return false;
 
-            // NIL has isLeaf() = false and payload = null
-            if (!leaf) {
-                Object payload = getPayload(node);
-                if (payload == null) {
-                    // Additional check: NIL points to itself for left/right
-                    Field leftField = findFieldInHierarchy(node.getClass(), "left");
-                    if (leftField != null) {
-                        leftField.setAccessible(true);
-                        Object left = leftField.get(node);
-                        return left == node; // NIL.left == NIL
-                    }
-                }
-            }
+            // left and right point to itself
+            Field leftField = findFieldInHierarchy(node.getClass(), "left");
+            Field rightField = findFieldInHierarchy(node.getClass(), "right");
+
+            if (leftField == null || rightField == null) return false;
+
+            leftField.setAccessible(true);
+            rightField.setAccessible(true);
+
+            Object left = leftField.get(node);
+            Object right = rightField.get(node);
+
+            return left == node && right == node;
         } catch (Exception e) {
-            // Ignore
+            // If anything fails, it’s not NIL
+            return false;
         }
-        return false;
     }
+
 
     private Object getParent(Object node) throws Exception {
         return getChild(node, "parent");
@@ -322,13 +348,6 @@ public class PieceTableTest {
         }
     }
 
-    private int getNodeLength(Object node) throws Exception {
-        Field f = findFieldInHierarchy(node.getClass(), "length");
-        if (f == null) throw new NoSuchFieldException("length");
-        f.setAccessible(true);
-        return (Integer) f.get(node);
-    }
-
     private Piece getPiece(Object node) throws Exception {
         if (node == null) return null;
 
@@ -357,21 +376,28 @@ public class PieceTableTest {
 
     // Recursively compute total length by walking children (independent of node.length)
     private int computeTotalLength(Object node) throws Exception {
-        if (node == null || isNilSentinel(node)) return 0;  // ✓ Add NIL check
+        if (node == null || isNilSentinel(node)) return 0;
 
-        if (isLeaf(node)) {
-            Piece p = getPiece(node);
-            return (p == null) ? 0 : p.getLength();
-        }
         Object left = getChild(node, "left");
         Object right = getChild(node, "right");
-        return computeTotalLength(left) + computeTotalLength(right);
+
+        int leftLen = computeTotalLength(left);
+        int rightLen = computeTotalLength(right);
+
+        // add this node's length
+        return leftLen + getNodeLength(node) + rightLen;
     }
 
-    private int countLeaves(Object node) throws Exception {
-        if (node == null || isNilSentinel(node)) return 0;  // ✓ Add NIL check
-        if (isLeaf(node)) return 1;
-        return countLeaves(getChild(node, "left")) + countLeaves(getChild(node, "right"));
+
+    private int countNodes(Object node) throws Exception {
+        if (node == null || isNilSentinel(node)) {
+            return 0;
+        }
+
+        int left = countNodes(getChild(node, "left"));
+        int right = countNodes(getChild(node, "right"));
+
+        return 1 + left + right; // 1 for the current node
     }
 
     // Ensure every internal node's stored length equals sum of children's lengths
@@ -553,7 +579,7 @@ public class PieceTableTest {
         assertEquals(13, total, "Total computed length should be 10 + 3 = 13");
 
         // Expect 3 leaves (left part, inserted part, right part)
-        int leaves = countLeaves(root);
+        int leaves = countNodes(root);
         assertEquals(3, leaves, "Expected 3 leaves after splitting the single leaf");
 
         // Structural and RB invariant checks
@@ -589,7 +615,7 @@ public class PieceTableTest {
         pt.insert(4, "BBB");
 
         Object root = getRoot(pt);
-        assertParentPointersConsistent(root, null);
+        assertParentPointersConsistent(root, pt.NIL);
     }
 
     @Test
@@ -601,7 +627,7 @@ public class PieceTableTest {
 
         for (int i = 0; i < N; i++) {
             int pieceLen = 1;
-            int curLen = pt.getTreeLength();
+            int curLen = pt.length();
             int pos;
             switch (i % 4) {
                 case 0:
@@ -633,7 +659,7 @@ public class PieceTableTest {
                 assertBlackDepthsEqual(root);
 
                 // parent pointers check (reflection-based)
-                assertParentPointersConsistent(root, null);
+                assertParentPointersConsistent(root, pt.NIL);
 
             } catch (Throwable t) {
                 System.out.println("===== Validation failed at insert iteration " + i +
@@ -666,7 +692,7 @@ public class PieceTableTest {
         pt.remove(4, 1);        // remove '3' -> "Xab2"
         pt.insert(4, "YZ");     // append -> "Xab2YZ"
         assertEquals("Xab2YZ", pt.getText());
-        assertEquals(6, pt.getTreeLength());
+        assertEquals(6, pt.length());
     }
 
     @Test
@@ -707,7 +733,7 @@ public class PieceTableTest {
                 assertLengthConsistency(root);
                 assertNoConsecutiveReds(root, false);
                 assertBlackDepthsEqual(root);
-                assertParentPointersConsistent(root, null);
+                assertParentPointersConsistent(root, pt.NIL);
             }
         }
     }
@@ -719,7 +745,7 @@ public class PieceTableTest {
         pt.remove(3, 3);      // back to "abcdef"
         pt.insert(3, "123");  // "abc123def"
         assertEquals("abc123def", pt.getText());
-        assertEquals(9, pt.getTreeLength());
+        assertEquals(9, pt.length());
     }
 
     @Test
@@ -728,7 +754,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello");
         pt.remove(2, -5);
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -737,7 +763,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello");
         pt.remove(2, 0);
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -746,7 +772,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello");
         pt.remove(-1, 3);
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -755,7 +781,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello");
         pt.remove(5, 3);
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -764,7 +790,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello");
         pt.remove(10, 5);
         assertEquals("Hello", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -773,7 +799,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("");
         pt.remove(0, 5);
         assertEquals("", pt.getText());
-        assertEquals(0, pt.getTreeLength());
+        assertEquals(0, pt.length());
     }
 
     @Test
@@ -782,7 +808,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello World");
         pt.remove(0, 11);
         assertEquals("", pt.getText());
-        assertEquals(0, pt.getTreeLength());
+        assertEquals(0, pt.length());
     }
 
     // ============================================================================
@@ -795,7 +821,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcdefgh");
         pt.remove(2, 3); // Remove "cde"
         assertEquals("abfgh", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -804,7 +830,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcdefgh");
         pt.remove(0, 3); // Remove "abc"
         assertEquals("defgh", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -813,7 +839,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcdefgh");
         pt.remove(5, 3); // Remove "fgh"
         assertEquals("abcde", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -822,7 +848,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.remove(0, 3);
         assertEquals("", pt.getText());
-        assertEquals(0, pt.getTreeLength());
+        assertEquals(0, pt.length());
     }
 
     @Test
@@ -831,7 +857,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abcde");
         pt.remove(2, 1); // Remove "c"
         assertEquals("abde", pt.getText());
-        assertEquals(4, pt.getTreeLength());
+        assertEquals(4, pt.length());
     }
 
     @Test
@@ -840,7 +866,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.remove(1, 2); // Remove "bc"
         assertEquals("a", pt.getText());
-        assertEquals(1, pt.getTreeLength());
+        assertEquals(1, pt.length());
     }
 
     @Test
@@ -849,7 +875,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.remove(0, 2); // Remove "ab"
         assertEquals("c", pt.getText());
-        assertEquals(1, pt.getTreeLength());
+        assertEquals(1, pt.length());
     }
 
     @Test
@@ -858,7 +884,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("abc");
         pt.remove(1, 1); // Remove "b"
         assertEquals("ac", pt.getText());
-        assertEquals(2, pt.getTreeLength());
+        assertEquals(2, pt.length());
     }
 
     // ============================================================================
@@ -872,7 +898,7 @@ public class PieceTableTest {
         pt.insert(3, "XYZ"); // "abcXYZdef"
         pt.remove(2, 5); // Remove "cXYZd"
         assertEquals("abef", pt.getText());
-        assertEquals(4, pt.getTreeLength());
+        assertEquals(4, pt.length());
     }
 
     @Test
@@ -883,7 +909,7 @@ public class PieceTableTest {
         pt.insert(6, "XY"); // "ab12cdXYef"
         pt.remove(1, 8); // Remove "b12cdXYe"
         assertEquals("af", pt.getText());
-        assertEquals(2, pt.getTreeLength());
+        assertEquals(2, pt.length());
     }
 
     @Test
@@ -893,7 +919,7 @@ public class PieceTableTest {
         pt.insert(3, "123"); // "abc123"
         pt.remove(0, 4); // Remove "abc1"
         assertEquals("23", pt.getText());
-        assertEquals(2, pt.getTreeLength());
+        assertEquals(2, pt.length());
     }
 
     @Test
@@ -903,7 +929,7 @@ public class PieceTableTest {
         pt.insert(3, "123"); // "abc123"
         pt.remove(2, 4); // Remove "c123"
         assertEquals("ab", pt.getText());
-        assertEquals(2, pt.getTreeLength());
+        assertEquals(2, pt.length());
     }
 
     @Test
@@ -914,7 +940,7 @@ public class PieceTableTest {
         pt.insert(6, "xyz"); // "abc123xyz"
         pt.remove(3, 3); // Remove "123" exactly
         assertEquals("abcxyz", pt.getText());
-        assertEquals(6, pt.getTreeLength());
+        assertEquals(6, pt.length());
     }
 
     @Test
@@ -924,7 +950,7 @@ public class PieceTableTest {
         pt.insert(5, "World"); // "HelloWorld"
         pt.remove(0, 7); // Remove "HelloWo"
         assertEquals("rld", pt.getText());
-        assertEquals(3, pt.getTreeLength());
+        assertEquals(3, pt.length());
     }
 
     @Test
@@ -934,7 +960,7 @@ public class PieceTableTest {
         pt.insert(5, "123"); // "Hello123"
         pt.remove(3, 5); // Remove "lo123"
         assertEquals("Hel", pt.getText());
-        assertEquals(3, pt.getTreeLength());
+        assertEquals(3, pt.length());
     }
 
     // ============================================================================
@@ -950,7 +976,7 @@ public class PieceTableTest {
         pt.insert(6, "DD"); // "AABBCCDDAA"
         pt.remove(3, 5); // Remove "BCCDD"
         assertEquals("AABAA", pt.getText());
-        assertEquals(5, pt.getTreeLength());
+        assertEquals(5, pt.length());
     }
 
     @Test
@@ -962,10 +988,10 @@ public class PieceTableTest {
         }
         // Now remove several nodes
         pt.remove(5, 3);
-        assertEquals(8, pt.getTreeLength());
+        assertEquals(8, pt.length());
         // Verify tree is still valid through subsequent operations
         pt.insert(4, "y");
-        assertEquals(9, pt.getTreeLength());
+        assertEquals(9, pt.length());
     }
 
     @Test
@@ -978,7 +1004,7 @@ public class PieceTableTest {
         }
         String before = pt.getText();
         pt.remove(5, 10);
-        assertEquals(10, pt.getTreeLength());
+        assertEquals(10, pt.length());
         assertNotEquals(before, pt.getText());
     }
 
@@ -992,7 +1018,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello\nWorld\nTest");
         pt.remove(5, 7); // Remove "\nWorld\n"
         assertEquals("HelloTest", pt.getText());
-        assertEquals(9, pt.getTreeLength());
+        assertEquals(9, pt.length());
     }
 
     @Test
@@ -1001,7 +1027,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello\nWorld");
         pt.remove(5, 1); // Remove "\n"
         assertEquals("HelloWorld", pt.getText());
-        assertEquals(10, pt.getTreeLength());
+        assertEquals(10, pt.length());
     }
 
     @Test
@@ -1010,7 +1036,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("Hello\n\n\nWorld");
         pt.remove(5, 3); // Remove "\n\n\n"
         assertEquals("HelloWorld", pt.getText());
-        assertEquals(10, pt.getTreeLength());
+        assertEquals(10, pt.length());
     }
 
     // ============================================================================
@@ -1039,7 +1065,7 @@ public class PieceTableTest {
         pt.insert(5, " There"); // "Hello There"
         pt.remove(6, 5); // "Hello "
         assertEquals("Hello ", pt.getText());
-        assertEquals(6, pt.getTreeLength());
+        assertEquals(6, pt.length());
     }
 
     @Test
@@ -1068,18 +1094,18 @@ public class PieceTableTest {
 
         // Build up document
         for (int i = 0; i < 50; i++) {
-            pt.insert(pt.getTreeLength(), "x");
+            pt.insert(pt.length(), "x");
         }
 
         // Perform many removals
         for (int i = 0; i < 30; i++) {
-            int len = pt.getTreeLength();
+            int len = pt.length();
             if (len > 0) {
                 int pos = rnd.nextInt(len);
                 int removeLen = rnd.nextInt(Math.min(5, len - pos)) + 1;
                 int expectedLen = len - removeLen;
                 pt.remove(pos, removeLen);
-                assertEquals(expectedLen, pt.getTreeLength(),
+                assertEquals(expectedLen, pt.length(),
                         "Length mismatch at iteration " + i);
             }
         }
@@ -1092,13 +1118,13 @@ public class PieceTableTest {
         Random rnd = new Random(42);
 
         for (int i = 0; i < 30; i++) {
-            int pos = rnd.nextInt(pt.getTreeLength() + 1);
+            int pos = rnd.nextInt(pt.length() + 1);
             pt.insert(pos, "x");
         }
 
-        int lenBefore = pt.getTreeLength();
+        int lenBefore = pt.length();
         pt.remove(10, 15);
-        assertEquals(lenBefore - 15, pt.getTreeLength());
+        assertEquals(lenBefore - 15, pt.length());
     }
 
     @Test
@@ -1127,7 +1153,7 @@ public class PieceTableTest {
         assertEquals("c", pt.getText());
         pt.remove(0, 1); // ""
         assertEquals("", pt.getText());
-        assertEquals(0, pt.getTreeLength());
+        assertEquals(0, pt.length());
     }
 
     @Test
@@ -1136,7 +1162,7 @@ public class PieceTableTest {
         PieceTable pt = new PieceTable("\n\n\n\n");
         pt.remove(1, 2);
         assertEquals("\n\n", pt.getText());
-        assertEquals(2, pt.getTreeLength());
+        assertEquals(2, pt.length());
     }
 
     @Test
@@ -1147,7 +1173,7 @@ public class PieceTableTest {
         pt.insert(11, "end"); // "startmiddleend"
         pt.remove(5, 6); // "startend"
         assertEquals("startend", pt.getText());
-        assertEquals(8, pt.getTreeLength());
+        assertEquals(8, pt.length());
     }
 
     @Test
@@ -1158,7 +1184,7 @@ public class PieceTableTest {
         pt.insert(2, "c"); // "abc"
         pt.remove(0, 3); // Should cleanly remove everything
         assertEquals("", pt.getText());
-        assertEquals(0, pt.getTreeLength());
+        assertEquals(0, pt.length());
     }
 
     // ============================================================================

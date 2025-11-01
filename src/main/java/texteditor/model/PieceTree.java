@@ -1,7 +1,6 @@
-package texteditor.model;
+/*package texteditor.model;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.OptionalInt;
 
 public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
@@ -23,13 +22,13 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
     public PieceTree(Piece initialPiece) {
         if (initialPiece != null) {
-            this.root = createLeafNode(initialPiece);
+            this.root = createNode(initialPiece);
             this.root.color = Color.BLACK;
         }
     }
     public PieceTree() {this(null);}
     @Override
-    protected int treeLength() { return (root != null) ? root.length : 0; }
+    protected int calculateLength() { return (root != null) ? root.length : 0; }
     @Override
     protected void setRoot(PieceNode node) {
         this.root = node;
@@ -39,7 +38,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     @Override
     protected PieceNode getRoot() { return this.root; }
     @Override
-    protected PieceNode createLeafNode(Piece payload) {
+    protected PieceNode createNode(Piece payload) {
         PieceNode node = new PieceNode(payload);
         bubbleRecompute(node);
         return node;
@@ -92,8 +91,8 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         Piece leftPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart(), localOffset);
         Piece rightPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart() + localOffset, oldLength - localOffset);
 
-        PieceNode leftNode = createLeafNode(leftPiece);
-        PieceNode rightNode = createLeafNode(rightPiece);
+        PieceNode leftNode = createNode(leftPiece);
+        PieceNode rightNode = createNode(rightPiece);
 
         leftNode.color = Color.RED;
         rightNode.color = Color.RED;
@@ -112,9 +111,9 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     NodeLocation getNodeLocation(int globalOffset) {
         if (this.root == null) throw new IllegalStateException("tree is empty");
 
-        if (globalOffset < 0 || globalOffset > treeLength()) {
+        if (globalOffset < 0 || globalOffset > calculateLength()) {
             throw new IndexOutOfBoundsException(
-                    "globalOffset " + globalOffset + " out of bounds [0, " + treeLength() + ")"
+                    "globalOffset " + globalOffset + " out of bounds [0, " + calculateLength() + ")"
             );
         }
 
@@ -190,13 +189,13 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
         if (root == null) throw new IllegalStateException("Cannot get range from empty tree");
         if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
 
-        if (globalOffset < 0 || globalOffset >= treeLength()) throw new IllegalArgumentException("position must be between 0 and " + (treeLength() - 1));
+        if (globalOffset < 0 || globalOffset >= calculateLength()) throw new IllegalArgumentException("position must be between 0 and " + (calculateLength() - 1));
 
-        int endPos = Math.min(treeLength(), globalOffset + removeLength);
+        int endPos = Math.min(calculateLength(), globalOffset + removeLength);
 
         NodeLocation startLocation = getNodeLocation(globalOffset);
         NodeLocation endLocation;
-        if (endPos == treeLength()) {
+        if (endPos == calculateLength()) {
             PieceNode lastLeaf = lastLeaf();
             endLocation = new NodeLocation(lastLeaf, lastLeaf.length);
         } else {
@@ -230,7 +229,7 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
 
 
     public String getTreeText() {
-        StringBuilder sb = new StringBuilder(treeLength());
+        StringBuilder sb = new StringBuilder(calculateLength());
         getTextHelper(this.root, sb);
         return sb.toString();
     }
@@ -274,3 +273,5 @@ public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
     }
 
 }
+
+ */
