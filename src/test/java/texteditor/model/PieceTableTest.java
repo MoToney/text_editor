@@ -251,7 +251,7 @@ public class PieceTableTest {
     }
 
     private Object getRoot(PieceTable table) throws Exception {
-        return getRootFromTree(table);
+        return getRootFromTree(table.tree);
     }
 
     // generalized child getter (left/right/parent) - Node is inner class, so use node.getClass()
@@ -615,7 +615,7 @@ public class PieceTableTest {
         pt.insert(4, "BBB");
 
         Object root = getRoot(pt);
-        assertParentPointersConsistent(root, pt.NIL);
+        assertParentPointersConsistent(root, pt.tree.NIL);
     }
 
     @Test
@@ -659,7 +659,7 @@ public class PieceTableTest {
                 assertBlackDepthsEqual(root);
 
                 // parent pointers check (reflection-based)
-                assertParentPointersConsistent(root, pt.NIL);
+                assertParentPointersConsistent(root, pt.tree.NIL);
 
             } catch (Throwable t) {
                 System.out.println("===== Validation failed at insert iteration " + i +
@@ -733,7 +733,7 @@ public class PieceTableTest {
                 assertLengthConsistency(root);
                 assertNoConsecutiveReds(root, false);
                 assertBlackDepthsEqual(root);
-                assertParentPointersConsistent(root, pt.NIL);
+                assertParentPointersConsistent(root, pt.tree.NIL);
             }
         }
     }

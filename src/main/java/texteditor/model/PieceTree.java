@@ -1,277 +1,376 @@
-/*package texteditor.model;
+package texteditor.model;
 
-import java.util.Objects;
-import java.util.OptionalInt;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class PieceTree extends RBTree<PieceTree.PieceNode, Piece> {
+    private int length;
+    int lines;
+
+    record Metrics(int length, int lines) {
+    }
+
+    ;
 
     public static class PieceNode extends Node<PieceNode, Piece> {
-        private int newlineCount;
-        PieceNode(Piece payload) { super(payload); }
-        PieceNode(PieceNode left, PieceNode right) {
-            super(left, right);
-            if (left != null) left.parent = this;
-            if (right != null) right.parent = this;
+        int lftLineCount;
+
+        PieceNode(Piece piece) {
+            super(piece);
         }
 
-        @Override
-        public boolean isLeaf() { return payload != null; }
-
-        public int getNewlineCount() { return newlineCount; }
-    }
-
-    public PieceTree(Piece initialPiece) {
-        if (initialPiece != null) {
-            this.root = createNode(initialPiece);
-            this.root.color = Color.BLACK;
+        PieceNode(Piece piece, PieceNode left, PieceNode right) {
+            super(piece, left, right);
         }
+
+        int size() {
+            int lfSize = (this.left != null && this.left.payload != null) ? this.left.size() : 0;
+            this.lftSize = lfSize;
+            int rtSize = (this.right != null && this.right.payload != null) ? this.right.size() : 0;
+            return lfSize + this.length() + rtSize;
+        }
+
+        int totalLines() {
+            int lfLineCount = (this.left != null && this.left.payload != null) ? this.left.totalLines() : 0;
+            this.lftLineCount = lfLineCount;
+            int rtLineCount = (this.right != null && this.right.payload != null) ? this.right.totalLines() : 0;
+            return lfLineCount + this.lines() + rtLineCount;
+        }
+
+        int length() {
+            return (payload != null) ? payload.getLength() : 0;
+        }
+
+        private int lines() {
+            return (payload != null) ? payload.getLineCount() : 0;
+        }
+
     }
-    public PieceTree() {this(null);}
-    @Override
-    protected int calculateLength() { return (root != null) ? root.length : 0; }
-    @Override
-    protected void setRoot(PieceNode node) {
-        this.root = node;
-        this.root.color = Color.BLACK;
-        recompute(this.root);
+
+    public PieceTree() {
+        super();
+        this.length = 0;
+        this.lines = 0;
     }
+
+    private Metrics computeMetrics(PieceNode node) {
+        if (node == NIL) return new Metrics(0, 0);
+
+        Metrics left = computeMetrics(node.left);
+        Metrics right = computeMetrics(node.right);
+
+        node.lftSize = left.length();
+        node.lftLineCount = left.lines();
+
+        int totalLen = left.length() + node.length() + right.length();
+        int totalLines = left.lines() + node.lines() + right.lines();
+        return new Metrics(totalLen, totalLines);
+    }
+
+
+    public void updateTreeMetrics() {
+        Metrics metrics = computeMetrics(this.getRoot());
+        this.length = metrics.length();
+        this.lines = metrics.lines();
+    }
+
     @Override
-    protected PieceNode getRoot() { return this.root; }
+    public int length() {
+        if (this.length > 0) {
+            return this.length;
+        } else if (this.getRoot() == this.NIL) {
+            return 0;
+        } else if (this.getRoot() != this.NIL) {
+            calcLength();
+            return this.length;
+        }
+        return 0;
+    }
+
+
     @Override
-    protected PieceNode createNode(Piece payload) {
-        PieceNode node = new PieceNode(payload);
+    public PieceNode createSentinel() {
+        PieceNode sentinel = new PieceNode(null);
+        sentinel.left = sentinel.right = sentinel.parent = sentinel;
+        sentinel.color = Color.BLACK;
+        sentinel.lftSize = 0;
+        sentinel.lftLineCount = 0;
+        return sentinel;
+    }
+
+    public void calcLength() {
+        this.length = (root != NIL) ? getRoot().size() : 0;
+        this.lines = (root != NIL) ? getRoot().totalLines() : 0;
+    }
+
+
+    @Override
+    protected PieceNode createNode(Piece piece) {
+        PieceNode node = new PieceNode(piece, this.NIL, this.NIL);
+        node.parent = this.NIL;
         bubbleRecompute(node);
         return node;
     }
+
     @Override
-    protected PieceNode createInternalNode(PieceNode left, PieceNode right) {
-        PieceNode node = new PieceNode(left, right);
-        bubbleRecompute(node);
-        return node;
+    protected boolean isLeaf(PieceNode node) {
+        return (node.left == this.NIL && node.right == this.NIL);
     }
+
     @Override
     protected void recompute(PieceNode node) {
-        if (node == null) return;
-        if (node.isLeaf()) {
-            node.length = (node.payload != null) ? node.payload.getLength() : 0;
-            node.newlineCount = ( node.payload != null) ? node.payload.getLineCount() : 0;
-        } else {
-            node.length =
-                    (node.left  != null ? node.left.length : 0) +
-                            (node.right != null ? node.right.length : 0);
-            node.newlineCount =
-                    (node.left  != null ? node.left.newlineCount : 0) +
-                            (node.right != null ? node.right.newlineCount : 0);
+        if (node == this.NIL) return;
+
+        node.lftSize = (node.left != null && node.left.payload != null) ? node.left.size() : 0;
+        node.lftLineCount = (node.left != null && node.left.payload != null) ? node.left.totalLines() : 0;
+    }
+
+    protected void replaceNode(PieceNode y, PieceNode node, PieceNode x) {
+        if (x != this.NIL) {
+            if (y.parent == node) x.parent = y;
+            else x.parent = y.parent;
         }
+
+        bubbleRecompute(x); // update subtree metadata first
+
+        y.left = node.left;
+        y.right = node.right;
+        y.parent = node.parent;
+        y.color = node.color;
+
+        if (node == getRoot()) setRoot(y);
+        else if (node == node.parent.left) node.parent.left = y;
+        else node.parent.right = y;
+
+        if (y.left != this.NIL) y.left.parent = y;
+        if (y.right != this.NIL) y.right.parent = y;
+
+        y.lftSize = node.lftSize;
+        y.lftLineCount = node.lftLineCount;
+        bubbleRecompute(y);
     }
 
-    @Override
-    protected void addSiblingNode(PieceNode originalSiblingNode, PieceNode newSiblingNode, boolean newOnLeft) {
-        PieceNode grandparent = originalSiblingNode.parent; // this was originally the parent of the node that needs a sibling
-
-        newSiblingNode.color = Color.RED;
-        Color newParentColor = originalSiblingNode.color;
-        originalSiblingNode.color = Color.RED;
-
-        PieceNode newParent = newOnLeft ?
-                createInternalNode(newSiblingNode, originalSiblingNode) :
-                createInternalNode(originalSiblingNode, newSiblingNode);
-
-        newParent.color = newParentColor;
-        replaceChild(grandparent, originalSiblingNode, newParent);
+    void deleteNodeTail(PieceNode node, int newExclusiveEnd) {
+        Piece piece = node.payload;
+        node.payload = new Piece(piece.getBuffer(), piece.getStart(), newExclusiveEnd);
+        recompute(node);
     }
 
-    public void splitLeafNode(PieceNode nodeToSplit, PieceNode newNode, int localOffset) {
-        PieceNode grandparent = nodeToSplit.parent;
+    void deleteNodeHead(PieceNode node, int newInclusiveStart) {
+        Piece piece = node.payload;
+        node.payload = new Piece(piece.getBuffer(), piece.getStart() + newInclusiveStart, piece.getLength() - newInclusiveStart);
+        recompute(node);
+    }
 
+    void deleteNodeCharsInRange(PieceNode node, int inclusiveStart, int exclusiveEnd) {
+        if (inclusiveStart == 0 || exclusiveEnd == node.length())
+            throw new IllegalArgumentException("Range exceeds the middle of the node");
+
+        Piece piece = node.payload;
+        int bufferStartOffset = piece.getStart();
+        int bufferEndOffset = piece.getEnd();
+
+        Piece leftPiece = new Piece(piece.getBuffer(), bufferStartOffset, inclusiveStart);
+        Piece rightPiece = new Piece(piece.getBuffer(), bufferStartOffset + exclusiveEnd, piece.getLength() - exclusiveEnd);
+
+        node.payload = leftPiece;
+        recompute(node);
+
+        addToRight(node, rightPiece);
+    }
+
+    private void addPieceInsideNode(PieceNode nodeToSplit, Piece newPiece, int localOffset) {
         Piece oldPiece = nodeToSplit.payload;
-
         int oldLength = oldPiece.getLength();
 
-        Piece leftPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart(), localOffset);
+
         Piece rightPiece = new Piece(oldPiece.getBuffer(), oldPiece.getStart() + localOffset, oldLength - localOffset);
+        deleteNodeTail(nodeToSplit, localOffset);
+        addToRight(nodeToSplit, rightPiece);
 
-        PieceNode leftNode = createNode(leftPiece);
-        PieceNode rightNode = createNode(rightPiece);
-
-        leftNode.color = Color.RED;
-        rightNode.color = Color.RED;
-        newNode.color = Color.RED;
-
-        PieceNode rightSubTree = createInternalNode(newNode, rightNode);
-        rightSubTree.color = Color.RED;
-
-        PieceNode newParent = createInternalNode(leftNode, rightSubTree);
-        newParent.color = nodeToSplit.color;
-        replaceChild(grandparent, nodeToSplit, newParent);
+        addToRight(nodeToSplit, newPiece);
+        bubbleRecompute(nodeToSplit);
     }
 
-    record NodeLocation(PieceNode node, int localOffset) {}
+    record NodeLocation(PieceNode node, int localOffset, int nodeStartOffset) {
+    }
 
     NodeLocation getNodeLocation(int globalOffset) {
         if (this.root == null) throw new IllegalStateException("tree is empty");
 
-        if (globalOffset < 0 || globalOffset > calculateLength()) {
-            throw new IndexOutOfBoundsException(
-                    "globalOffset " + globalOffset + " out of bounds [0, " + calculateLength() + ")"
-            );
+        if (globalOffset < 0 || globalOffset > this.length()) {
+            throw new IllegalArgumentException("Illegal global offset");
         }
 
-        PieceNode node = this.root;
-        int offset = globalOffset;
+        PieceNode node = this.getRoot();
+        int startOffset = globalOffset;
 
-        while (!Objects.requireNonNull(node).isLeaf()) {
-            int leftLen = (node.left != null) ? node.left.length : 0;
-            if (offset < leftLen) {
+        while (node != this.NIL) {
+            int leftLen = node.lftSize;
+
+            if (globalOffset < leftLen) {
                 node = node.left;
+            } else if (leftLen + node.length() >= globalOffset) {
+                startOffset += node.length();
+                return new NodeLocation(node, globalOffset - leftLen, node.payload.getStart());
             } else {
-                offset -= leftLen;
+                globalOffset -= leftLen + node.length();
+                startOffset += leftLen + node.length();
                 node = node.right;
             }
         }
-        return new NodeLocation(node, offset);
+        return null;
     }
 
-    int getGlobalOffsetAtNodeLocation(NodeLocation nodeLocation) {
-        if (nodeLocation == null || nodeLocation.node == null) throw new IllegalArgumentException("Invalid node location");
+    // TODO: CORRECT REMOVE LOGIC
+    @Override
+    protected void deleteNode(PieceNode node) {
+        if (node == this.NIL) return;
 
-        int globalOffset = nodeLocation.localOffset();
-        PieceNode currentNode = nodeLocation.node();
+        PieceNode x = this.NIL;
+        PieceNode y = this.NIL;
 
-        while (currentNode != null) {
-            PieceNode parentNode = currentNode.parent;
-            if (parentNode != null && currentNode == parentNode.right) {
-                globalOffset += (parentNode.left != null) ? parentNode.left.length : 0;
-            }
-            currentNode = parentNode;
-        }
-
-        return globalOffset;
-    }
-
-    public OptionalInt getGlobalOffsetOfLine(int lineNumber) {
-        int lineIndex = lineNumber - 1;
-        if (root == null || lineIndex < 0 || lineIndex >= root.newlineCount) return OptionalInt.empty();
-
-        PieceNode currentNode = root;
-        int baseOffset = 0;
-
-        while (!Objects.requireNonNull(currentNode).isLeaf()) {
-            int leftSubtreeNewlineCount = (currentNode.left != null) ? currentNode.left.newlineCount : 0;
-            if (lineIndex < leftSubtreeNewlineCount) {
-                currentNode = currentNode.left;
-            } else {
-                int leftSubtreeLength = (currentNode.left != null) ? currentNode.left.length : 0;
-                lineIndex -= leftSubtreeNewlineCount;
-                baseOffset += leftSubtreeLength;
-                currentNode = currentNode.right;
-            }
-        }
-
-        PieceNode currentLeaf = currentNode;
-        while (currentLeaf != null) {
-            Piece payload = currentLeaf.payload;
-            for (int i = 0; i < currentLeaf.length; i++) {
-                if (payload.getChar(i) == '\n') {
-                    if (lineIndex == 0) return OptionalInt.of(baseOffset + i);
-                    lineIndex--;
-                }
-            }
-            baseOffset += currentLeaf.length;
-            currentLeaf = nextLeaf(currentLeaf);
-        }
-        return OptionalInt.empty();
-    }
-
-    record NodeRange(NodeLocation startLocation, NodeLocation endLocation) {}
-
-    NodeRange getNodeRange(int globalOffset, int removeLength) {
-        if (root == null) throw new IllegalStateException("Cannot get range from empty tree");
-        if (removeLength <= 0) throw new IllegalArgumentException("remove length must be positive");
-
-        if (globalOffset < 0 || globalOffset >= calculateLength()) throw new IllegalArgumentException("position must be between 0 and " + (calculateLength() - 1));
-
-        int endPos = Math.min(calculateLength(), globalOffset + removeLength);
-
-        NodeLocation startLocation = getNodeLocation(globalOffset);
-        NodeLocation endLocation;
-        if (endPos == calculateLength()) {
-            PieceNode lastLeaf = lastLeaf();
-            endLocation = new NodeLocation(lastLeaf, lastLeaf.length);
+        // determine which node to actually remove (splice node)
+        if (node.left == this.NIL || node.right == this.NIL) {
+            y = node;
         } else {
-            endLocation = getNodeLocation(endPos);
+            y = leftmost(node.right);
+        } // in-order successor
+
+        x = (y.left != this.NIL) ? y.left : y.right; // get replacement, which will be child of y, if y is node
+
+        // handle root deletion case
+        if (y == getRoot()) {
+            setRoot(x);
+            detach(node);
+            return;
         }
 
-        return (startLocation != null && endLocation != null) ? new NodeRange(startLocation, endLocation) : null;
+        // splice out y and update parent pointers
+        if (y == y.parent.left) y.parent.left = x;
+        else y.parent.right = x;
+        if (x != this.NIL) x.parent = y.parent;
+
+        // if y was the in-order successor and not the actual node, replace the node with y
+        if (y != node) {
+            replaceNode(y, node, x);       // Move successor y into node's position
+        }
+
+        PieceNode p = (x != NIL ? x.parent : y.parent);
+        while (p != NIL) {
+            recompute(p);
+            p = p.parent;
+        }
+
+        if (y.color == Color.BLACK) {
+            removeFixup(x);         // RB-DELETE-FIXUP
+        }
+        detach(node); // Remove references
     }
 
-    PieceNode removeBetweenLeaves(PieceNode startLeaf, PieceNode endLeaf) {
-        if (startLeaf == null || endLeaf == null) throw new IllegalArgumentException("Illegal remove between leaves");
+    private void deleteNodes(List<PieceNode> nodes) {
+        for (PieceNode node : nodes) {
+            deleteNode(node);
+        }
+    }
 
-        PieceNode curLeaf = nextLeaf(startLeaf);
-        if (curLeaf == null || curLeaf == endLeaf) return startLeaf;
+    void removeHelper(int globalOffsetInclusive, int removeLength) {
 
-        while (curLeaf != null && curLeaf != endLeaf) {
-            PieceNode nextLeaf = nextLeaf(curLeaf);
+        NodeLocation rmStart = getNodeLocation(globalOffsetInclusive);
+        NodeLocation rmEnd = getNodeLocation(globalOffsetInclusive + removeLength);
 
-            PieceNode removedLeaf = curLeaf;
-            PieceNode parent = removedLeaf.parent;
-            replaceChild(parent, removedLeaf, null);
+        PieceNode rmStartNode = rmStart.node();
+        PieceNode rmEndNode = rmEnd.node();
 
-            if (removedLeaf.isBlack()) {
-                PieceNode problemNode = findNodeForFixup(removedLeaf);
-                if (problemNode != null) removeFixup(problemNode);
+        if (rmStartNode == rmEndNode) {
+            PieceNode node = rmStartNode;
+            Piece piece = node.payload;
+
+            int startOffsetInclusive = rmStart.localOffset();
+            int endOffsetExclusive = rmEnd.localOffset();
+
+            // delete entire node
+            if (startOffsetInclusive == 0 && removeLength == piece.getLength()) {
+                deleteNode(node);
+                bubbleRecompute(node.parent);
+                return;
+            } else if (startOffsetInclusive > 0 && removeLength + startOffsetInclusive == piece.getLength()) {
+                deleteNodeTail(node, startOffsetInclusive);
+            } else if (startOffsetInclusive == 0 && removeLength < piece.getLength()) {
+                deleteNodeHead(node, endOffsetExclusive);
+            } else if (startOffsetInclusive > 0 && removeLength + startOffsetInclusive < piece.getLength()) {
+                deleteNodeCharsInRange(node, startOffsetInclusive, endOffsetExclusive);
             }
-            curLeaf = nextLeaf;
+            calcLength();
+            return;
         }
-        return startLeaf;
-    }
 
+        // TODO:  create a version that grabs the interior nodes prior to trimming startLocation and endLocation nodes, and removes them
+        List<PieceNode> nodesToDelete = new ArrayList<>();
 
-    public String getTreeText() {
-        StringBuilder sb = new StringBuilder(calculateLength());
-        getTextHelper(this.root, sb);
-        return sb.toString();
-    }
-
-    private void getTextHelper(PieceTree.PieceNode node, StringBuilder stringBuilder) {
-        if (node == null) {return;}
-        if (node.isLeaf()) {
-            String text = node.payload.getText();
-            stringBuilder.append(text);
+        // delete
+        if (rmStart.localOffset() > 0) {
+            deleteNodeTail(rmStartNode, rmStart.localOffset());
         } else {
-            getTextHelper(node.left, stringBuilder);
-            getTextHelper(node.right, stringBuilder);
+            nodesToDelete.add(rmStartNode);
         }
+
+        if (rmEnd.localOffset() <= rmEndNode.length() - 1) {
+            deleteNodeHead(rmEndNode, rmEnd.localOffset());
+        } else {
+            nodesToDelete.add(rmEndNode);
+        }
+
+        PieceNode nextNode = nextNode(rmStartNode);
+        while (nextNode != this.NIL && nextNode != rmEndNode) {
+            nodesToDelete.add(nextNode);
+            nextNode = nextNode(nextNode);
+        }
+
+        deleteNodes(nodesToDelete);
     }
 
-
-    public boolean isValidRedBlack() {
-        if (root != null && root.isRed()) return false;  // Root must be black
-        return checkRedBlackProperties(root) != -1;
-    }
-
-    private int checkRedBlackProperties(PieceNode node)  {
-        if (node == null) return 0;  // Null nodes are black
-
-        // Check for red-red violations
-        if (node.isRed()) {
-            if ((node.left != null && node.left.isRed()) ||
-                    (node.right != null && node.right.isRed())) {
-                return -1;  // Red-red violation
+    void insertHelper(int globalOffset, Piece pieceToInsert) {
+        if (this.getRoot() == NIL) {
+            if (globalOffset != 0) {
+                throw new IllegalArgumentException(("Can only insert at position 0 when tree is empty"));
             }
+            setRoot(this.createNode(pieceToInsert));
+            calcLength();
+            return;
         }
 
-        int leftHeight = checkRedBlackProperties(node.left);
-        int rightHeight = checkRedBlackProperties(node.right);
-
-        if ( rightHeight == -1 || leftHeight != rightHeight) {
-            return -1;  // Black height violation
+        if (globalOffset == length()) {
+            PieceNode lastLeaf = this.lastLeaf();
+            addToRight(lastLeaf, pieceToInsert);
+            calcLength();
+            return;
         }
 
-        return leftHeight + (node.isBlack() ? 1 : 0);
+        NodeLocation result = this.getNodeLocation(globalOffset);
+        PieceNode node = result.node();
+        int localOffset = result.localOffset();
+
+        if (localOffset == 0) {
+            addToLeft(pieceToInsert, node);
+        } else if (localOffset > 0 && localOffset < node.length() - 1) {
+            addPieceInsideNode(node, pieceToInsert, localOffset);
+        } else {
+            addToRight(node, pieceToInsert);
+        }
+        calcLength();
     }
 
+    public void traverseInOrder(Consumer<PieceNode> action) {
+        traverseHelper(root, action);
+    }
+
+    public void traverseHelper(PieceNode node, Consumer<PieceNode> action) {
+        if (node == this.NIL) return;
+
+        traverseHelper(node.left, action);
+        action.accept(node);
+        traverseHelper(node.right, action);
+    }
 }
-
- */
